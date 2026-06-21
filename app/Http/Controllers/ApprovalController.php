@@ -1,0 +1,82 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\ApprovalRequest;
+use App\Models\ApprovalResponse;
+use App\Models\AuditEvent;
+use App\Models\ContentItem;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class ApprovalController extends Controller
+{
+    public function store(Request $request, ContentItem $contentItem): RedirectResponse
+    {
+        abort_unless($request->user()->canManageOperations(), 403);
+
+        $approval = ApprovalRequest::create([
+            'content_item_id' => $contentItem->id,
+            'created_by' => $request->user()->id,
+            'token' => Str::random(48),
+            'version' => $contentItem->revision_number,
+            'expires_at' => now()->addDays(4),
+        ]);
+
+        return back()->with('approval_url', route('approvals.show', $approval->token));
+    }
+
+    public function show(string $token): Response
+    {
+        $approval = ApprovalRequest::where('token', $token)
+            ->with('contentItem.business:id,name,logo_url')
+            ->firstOrFail();
+
+        abort_if($approval->revoked_at || $approval->expires_at->isPast(), 410, 'This approval link has expired.');
+        $approval->makeVisible('token');
+
+        return Inertia::render('approval/show', ['approval' => $approval]);
+    }
+
+    public function respond(Request $request, string $token): RedirectResponse
+    {
+        $approval = ApprovalRequest::where('token', $token)->firstOrFail();
+        abort_if($approval->revoked_at || $approval->expires_at->isPast(), 410);
+
+        $data = $request->validate([
+            'client_name' => ['required', 'string', 'max:120'],
+            'action' => ['required', 'in:approved,changes_requested'],
+            'comment' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        ApprovalResponse::create([
+            ...$data,
+            'approval_request_id' => $approval->id,
+            'ip_address' => $request->ip(),
+        ]);
+
+        $approval->update([
+            'status' => $data['action'],
+            'responded_at' => now(),
+        ]);
+
+        $approval->contentItem->update([
+            'stage' => $data['action'] === 'approved' ? 'approved' : 'editing',
+            'revision_number' => $data['action'] === 'approved'
+                ? $approval->contentItem->revision_number
+                : $approval->contentItem->revision_number + 1,
+        ]);
+
+        AuditEvent::create([
+            'event' => 'approval.responded',
+            'auditable_type' => ApprovalRequest::class,
+            'auditable_id' => $approval->id,
+            'metadata' => $data,
+        ]);
+
+        return back()->with('success', 'Your response has been recorded.');
+    }
+}
