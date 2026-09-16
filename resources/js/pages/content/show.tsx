@@ -11,6 +11,8 @@ import {
 import { useState } from 'react';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { AddTaskDialog } from '@/components/add-task-dialog';
+import { EditContentDetailsDialog } from '@/components/edit-content-details-dialog';
 import { dateTime, humanize } from '@/lib/format';
 
 type PlatformVersion = {
@@ -42,6 +44,7 @@ type Approval = {
         action: string;
         comment?: string;
     }[];
+    token?: string;
 };
 type Content = {
     id: number;
@@ -69,9 +72,11 @@ type Content = {
 export default function ContentShow({
     content,
     stages,
+    users,
 }: {
     content: Content;
     stages: string[];
+    users: { id: number; name: string; avatar?: string }[];
 }) {
     const [platform, setPlatform] = useState(
         content.platform_versions[0]?.platform ?? 'instagram',
@@ -199,8 +204,9 @@ export default function ContentShow({
             <main className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(330px,0.85fr)]">
                 <div className="flex min-w-0 flex-col gap-5">
                     <section className="lumink-panel overflow-hidden">
-                        <div className="border-b px-4 py-3">
+                        <div className="flex items-center justify-between border-b px-4 py-3">
                             <h2 className="font-semibold">Brief & details</h2>
+                            <EditContentDetailsDialog content={content} />
                         </div>
                         <div className="grid md:grid-cols-[minmax(0,1fr)_280px]">
                             <div className="flex flex-col gap-5 p-4">
@@ -273,9 +279,11 @@ export default function ContentShow({
                             <h2 className="font-semibold">
                                 Assigned production tasks
                             </h2>
-                            <Button variant="ghost" size="sm">
-                                Add task
-                            </Button>
+                            <AddTaskDialog 
+                                businessId={content.business.id} 
+                                contentId={content.id} 
+                                users={users} 
+                            />
                         </div>
                         <table className="lumink-table">
                             <thead>
@@ -472,7 +480,7 @@ export default function ContentShow({
                                 className="mt-4 w-full"
                             >
                                 <a
-                                    href={`/approve/lumink-demo-approval`}
+                                    href={`/approve/${latestApproval.token}`}
                                     target="_blank"
                                     rel="noreferrer"
                                 >

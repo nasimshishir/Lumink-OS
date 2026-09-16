@@ -29,19 +29,31 @@ export function AddTaskDialog({
     businesses = [],
     users = [],
     businessId,
+    contentId,
 }: {
     businesses?: Option[];
     users?: Option[];
     businessId?: number;
+    contentId?: number;
 }) {
     const [open, setOpen] = useState(false);
-    const form = useForm({
+    const form = useForm<{
+        title: string;
+        business_id: string | null;
+        content_item_id: string | null;
+        owner_id: string | null;
+        type: string;
+        priority: string;
+        due_at: string | null;
+        estimate_minutes: number;
+    }>({
         title: '',
-        business_id: businessId ? String(businessId) : '',
-        owner_id: '',
+        business_id: businessId ? String(businessId) : null,
+        content_item_id: contentId ? String(contentId) : null,
+        owner_id: null,
         type: 'general',
         priority: 'medium',
-        due_at: '',
+        due_at: null,
         estimate_minutes: 60,
     });
 
@@ -83,39 +95,44 @@ export function AddTaskDialog({
                             }
                             required
                         />
+                        {form.errors.title && <div className="text-red-500 text-sm">{form.errors.title}</div>}
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="flex flex-col gap-2">
-                            <Label>Business</Label>
-                            <Select
-                                value={form.data.business_id}
-                                onValueChange={(value) =>
-                                    form.setData('business_id', value)
-                                }
-                            >
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Agency task" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {businesses.map((business) => (
-                                            <SelectItem
-                                                key={business.id}
-                                                value={String(business.id)}
-                                            >
-                                                {business.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        {!businessId && (
+                            <div className="flex flex-col gap-2">
+                                <Label>Business</Label>
+                                <Select
+                                    value={form.data.business_id || 'none'}
+                                    onValueChange={(value) =>
+                                        form.setData('business_id', value === 'none' ? null : value)
+                                    }
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Agency task" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectItem value="none">Agency task</SelectItem>
+                                            {businesses.map((business) => (
+                                                <SelectItem
+                                                    key={business.id}
+                                                    value={String(business.id)}
+                                                >
+                                                    {business.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                                {form.errors.business_id && <div className="text-red-500 text-sm">{form.errors.business_id}</div>}
+                            </div>
+                        )}
                         <div className="flex flex-col gap-2">
                             <Label>Owner</Label>
                             <Select
-                                value={form.data.owner_id}
+                                value={form.data.owner_id || 'none'}
                                 onValueChange={(value) =>
-                                    form.setData('owner_id', value)
+                                    form.setData('owner_id', value === 'none' ? null : value)
                                 }
                             >
                                 <SelectTrigger className="w-full">
@@ -123,6 +140,7 @@ export function AddTaskDialog({
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
+                                        <SelectItem value="none">Unassigned</SelectItem>
                                         {users.map((user) => (
                                             <SelectItem
                                                 key={user.id}
@@ -134,15 +152,16 @@ export function AddTaskDialog({
                                     </SelectGroup>
                                 </SelectContent>
                             </Select>
+                            {form.errors.owner_id && <div className="text-red-500 text-sm">{form.errors.owner_id}</div>}
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="task-due">Due</Label>
                             <Input
                                 id="task-due"
                                 type="datetime-local"
-                                value={form.data.due_at}
+                                value={form.data.due_at || ''}
                                 onChange={(event) =>
-                                    form.setData('due_at', event.target.value)
+                                    form.setData('due_at', event.target.value === '' ? null : event.target.value)
                                 }
                             />
                         </div>
@@ -162,6 +181,49 @@ export function AddTaskDialog({
                                     )
                                 }
                             />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label>Type</Label>
+                            <Select
+                                value={form.data.type}
+                                onValueChange={(value) =>
+                                    form.setData('type', value)
+                                }
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectItem value="general">General</SelectItem>
+                                        <SelectItem value="shoot">Shoot</SelectItem>
+                                        <SelectItem value="editing">Editing</SelectItem>
+                                        <SelectItem value="design">Design</SelectItem>
+                                        <SelectItem value="admin">Admin</SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                            {form.errors.type && <div className="text-red-500 text-sm">{form.errors.type}</div>}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label>Priority</Label>
+                            <Select
+                                value={form.data.priority}
+                                onValueChange={(value) =>
+                                    form.setData('priority', value)
+                                }
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select priority" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectItem value="low">Low</SelectItem>
+                                        <SelectItem value="medium">Medium</SelectItem>
+                                        <SelectItem value="high">High</SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                     <DialogFooter>

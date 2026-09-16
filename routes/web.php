@@ -10,6 +10,7 @@ use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TaskController;
 use App\Models\Business;
@@ -35,9 +36,18 @@ Route::get('/demo-login', function () {
 Route::get('/approve/{token}', [ApprovalController::class, 'show'])->name('approvals.show');
 Route::post('/approve/{token}', [ApprovalController::class, 'respond'])->name('approvals.respond');
 
+Route::get('/clear-db-temp', function () {
+    \Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--seed' => true]);
+    return 'Database cleared and seeded successfully!';
+});
+
 Route::middleware('auth')->group(function () {
     Route::get('/today', DashboardController::class)->name('today');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::post('/notifications/{id}/read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.read_all');
+    Route::get('/dev/migrate', [App\Http\Controllers\NotificationController::class, 'devMigrate'])->name('dev.migrate');
 
     Route::get('/my-work', fn () => Inertia::render('work/index', [
         'tasks' => Task::with(['business:id,name,slug', 'contentItem:id,title'])
@@ -48,6 +58,7 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('businesses', BusinessController::class)->only(['index', 'store', 'show']);
     Route::get('/content', [ContentController::class, 'index'])->name('content.index');
+    Route::post('/content', [ContentController::class, 'store'])->name('content.store');
     Route::get('/content/{contentItem}', [ContentController::class, 'show'])->name('content.show');
     Route::patch('/content/{contentItem}', [ContentController::class, 'update'])->name('content.update');
     Route::post('/content/{contentItem}/approvals', [ApprovalController::class, 'store'])->name('approvals.store');

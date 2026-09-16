@@ -1,7 +1,7 @@
 /.phpunit.cache
 /bootstrap/ssr
 /node_modules
-/public/build
+# /public/build (tracked for production deployment without server-side Node)
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage

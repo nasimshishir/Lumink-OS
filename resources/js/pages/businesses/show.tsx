@@ -1,6 +1,8 @@
 import { Head, Link } from '@inertiajs/react';
-import { CalendarDays, ExternalLink, Plus, Target } from 'lucide-react';
+import { CalendarDays, ExternalLink, Plus, Target, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
 import { AddTaskDialog } from '@/components/add-task-dialog';
+import { AddContentDialog } from '@/components/add-content-dialog';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { dateTime, humanize, money, shortDate } from '@/lib/format';
@@ -59,15 +61,18 @@ type Business = {
 
 export default function BusinessShow({
     business,
+    users = [],
     profitability,
 }: {
     business: Business;
+    users?: { id: number; name: string }[];
     profitability: {
         directExpenses: number;
         trackedMinutes: number;
         margin: number;
     };
 }) {
+    const [activeTab, setActiveTab] = useState('Overview');
     const targets = business.deliverable_targets ?? {};
     const delivered = {
         reels: business.content_items.filter((item) => item.type === 'reel')
@@ -137,13 +142,8 @@ export default function BusinessShow({
                                 </a>
                             </Button>
                         )}
-                        <Button asChild variant="outline">
-                            <Link href="/content">
-                                <Plus data-icon="inline-start" />
-                                Add content
-                            </Link>
-                        </Button>
-                        <AddTaskDialog businessId={business.id} />
+                        <AddContentDialog businessId={business.id} />
+                        <AddTaskDialog businessId={business.id} users={users} />
                     </div>
                 </div>
                 <nav className="mt-6 flex gap-6 overflow-x-auto text-sm font-medium">
@@ -155,22 +155,24 @@ export default function BusinessShow({
                         'Files',
                         'Performance',
                         'Finance',
-                    ].map((tab, index) => (
-                        <span
+                    ].map((tab) => (
+                        <button
                             key={tab}
+                            onClick={() => setActiveTab(tab)}
                             className={
-                                index === 0
-                                    ? 'border-b-2 border-primary pb-3 text-primary'
-                                    : 'pb-3 text-muted-foreground'
+                                activeTab === tab
+                                    ? 'border-b-2 border-primary pb-3 text-primary whitespace-nowrap'
+                                    : 'pb-3 text-muted-foreground whitespace-nowrap hover:text-foreground'
                             }
                         >
                             {tab}
-                        </span>
+                        </button>
                     ))}
                 </nav>
             </header>
 
-            <main className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
+            {activeTab === 'Overview' && (
+                <main className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
                 <div className="flex min-w-0 flex-col gap-5">
                     <section className="lumink-panel p-4">
                         <h2 className="font-semibold">This month</h2>
@@ -373,6 +375,91 @@ export default function BusinessShow({
                     </section>
                 </aside>
             </main>
+            )}
+
+            {activeTab === 'Content' && (
+                <main className="p-5">
+                    <section className="lumink-panel overflow-hidden">
+                        <table className="lumink-table">
+                            <thead>
+                                <tr>
+                                    <th>Content</th>
+                                    <th>Campaign</th>
+                                    <th>Owner</th>
+                                    <th>Publish</th>
+                                    <th>Stage</th>
+                                    <th />
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {business.content_items.map((item) => (
+                                    <tr key={item.id}>
+                                        <td>
+                                            <p className="font-medium">{item.title}</p>
+                                            <p className="text-xs text-muted-foreground">{humanize(item.type)}</p>
+                                        </td>
+                                        <td>{business.campaigns.find(c => item.title.includes(c.name))?.name ?? '—'}</td>
+                                        <td>{item.owner?.name ?? 'Unassigned'}</td>
+                                        <td>{dateTime(item.publish_at)}</td>
+                                        <td><StatusBadge value={item.stage} /></td>
+                                        <td>
+                                            <Button asChild variant="ghost" size="sm">
+                                                <Link href={`/content/${item.id}`}>
+                                                    Open <ArrowRight data-icon="inline-end" />
+                                                </Link>
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {business.content_items.length === 0 && (
+                                    <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">No content items yet.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </section>
+                </main>
+            )}
+
+            {activeTab === 'Tasks' && (
+                <main className="p-5">
+                    <section className="lumink-panel overflow-hidden">
+                        <table className="lumink-table">
+                            <thead>
+                                <tr>
+                                    <th>Due</th>
+                                    <th>Type</th>
+                                    <th>Task</th>
+                                    <th>Owner</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {business.tasks.map((task) => (
+                                    <tr key={task.id}>
+                                        <td>{dateTime(task.due_at)}</td>
+                                        <td>{humanize(task.type)}</td>
+                                        <td className="font-medium">{task.title}</td>
+                                        <td>{task.owner?.name ?? 'Unassigned'}</td>
+                                        <td><StatusBadge value={task.status} /></td>
+                                    </tr>
+                                ))}
+                                {business.tasks.length === 0 && (
+                                    <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No tasks yet.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </section>
+                </main>
+            )}
+
+            {['Calendar', 'Files', 'Performance', 'Finance'].includes(activeTab) && (
+                <main className="p-5">
+                    <section className="lumink-panel p-8 text-center text-muted-foreground">
+                        <h2 className="text-lg font-medium text-foreground">{activeTab}</h2>
+                        <p className="mt-2">The {activeTab.toLowerCase()} view will be available in an upcoming update.</p>
+                    </section>
+                </main>
+            )}
         </>
     );
 }

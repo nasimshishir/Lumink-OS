@@ -34,6 +34,11 @@ class Task extends Model
         return $this->belongsTo(User::class, 'owner_id');
     }
 
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function timeEntries(): HasMany
     {
         return $this->hasMany(TimeEntry::class);

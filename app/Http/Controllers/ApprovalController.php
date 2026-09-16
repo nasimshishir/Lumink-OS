@@ -52,7 +52,7 @@ class ApprovalController extends Controller
             'comment' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        ApprovalResponse::create([
+        $response = ApprovalResponse::create([
             ...$data,
             'approval_request_id' => $approval->id,
             'ip_address' => $request->ip(),
@@ -69,6 +69,20 @@ class ApprovalController extends Controller
                 ? $approval->contentItem->revision_number
                 : $approval->contentItem->revision_number + 1,
         ]);
+
+        // Notify content owner and approval creator
+        $contentItem = $approval->contentItem;
+        $usersToNotify = collect();
+        if ($contentItem->owner_id) {
+            $usersToNotify->push($contentItem->owner);
+        }
+        if ($approval->created_by) {
+            $usersToNotify->push($approval->creator);
+        }
+
+        $usersToNotify->filter()->unique('id')->each(function ($user) use ($approval, $response) {
+            $user->notify(new \App\Notifications\ApprovalResponded($approval, $response));
+        });
 
         AuditEvent::create([
             'event' => 'approval.responded',

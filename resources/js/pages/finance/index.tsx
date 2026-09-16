@@ -203,6 +203,10 @@ function ExpenseDialog({ businesses }: { businesses: Business[] }) {
     });
     function submit(event: FormEvent) {
         event.preventDefault();
+        form.transform((data) => ({
+            ...data,
+            business_id: data.business_id === 'none' ? '' : data.business_id,
+        }));
         form.post('/expenses', {
             preserveScroll: true,
             onSuccess: () => {
@@ -256,7 +260,7 @@ function ExpenseDialog({ businesses }: { businesses: Business[] }) {
                         <div className="flex flex-col gap-2">
                             <Label>Business</Label>
                             <Select
-                                value={form.data.business_id}
+                                value={form.data.business_id || 'none'}
                                 onValueChange={(value) =>
                                     form.setData('business_id', value)
                                 }
@@ -266,6 +270,7 @@ function ExpenseDialog({ businesses }: { businesses: Business[] }) {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
+                                        <SelectItem value="none">None / Agency</SelectItem>
                                         {businesses.map((business) => (
                                             <SelectItem
                                                 key={business.id}

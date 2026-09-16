@@ -91,6 +91,20 @@ function AddBusinessDialog() {
                             />
                         </div>
                         <div className="flex flex-col gap-2">
+                            <Label htmlFor="contact-email">Contact email</Label>
+                            <Input
+                                id="contact-email"
+                                type="email"
+                                value={form.data.primary_contact_email}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'primary_contact_email',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
                             <Label htmlFor="contact-phone">Phone</Label>
                             <Input
                                 id="contact-phone"

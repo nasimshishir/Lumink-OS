@@ -11,23 +11,32 @@ class TaskController extends Controller
 {
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:180'],
-            'business_id' => ['nullable', 'exists:businesses,id'],
-            'content_item_id' => ['nullable', 'exists:content_items,id'],
-            'owner_id' => ['nullable', 'exists:users,id'],
-            'type' => ['required', 'string', 'max:50'],
-            'priority' => ['required', 'in:low,medium,high'],
-            'due_at' => ['nullable', 'date'],
-            'estimate_minutes' => ['nullable', 'integer', 'min:0'],
-            'description' => ['nullable', 'string'],
-        ]);
+        try {
+            $data = $request->validate([
+                'title' => ['required', 'string', 'max:180'],
+                'business_id' => ['nullable', 'exists:businesses,id'],
+                'content_item_id' => ['nullable', 'exists:content_items,id'],
+                'owner_id' => ['nullable', 'exists:users,id'],
+                'type' => ['required', 'string', 'max:50'],
+                'priority' => ['required', 'in:low,medium,high'],
+                'due_at' => ['nullable', 'date'],
+                'estimate_minutes' => ['nullable', 'integer', 'min:0'],
+                'description' => ['nullable', 'string'],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Task creation validation failed', $e->errors());
+            throw $e;
+        }
 
         $task = Task::create([
             ...$data,
             'created_by' => $request->user()->id,
             'status' => 'todo',
         ]);
+
+        if ($task->owner_id && $task->owner_id !== $request->user()->id) {
+            $task->owner->notify(new \App\Notifications\TaskAssigned($task, $request->user()->name));
+        }
 
         AuditEvent::create([
             'user_id' => $request->user()->id,
@@ -52,7 +61,28 @@ class TaskController extends Controller
             'actual_minutes' => ['sometimes', 'integer', 'min:0'],
         ]);
 
+        $oldStatus = $task->status;
+        $oldOwnerId = $task->owner_id;
         $task->update($data);
+
+        if (isset($data['owner_id']) && $data['owner_id'] !== $oldOwnerId && $data['owner_id'] !== $request->user()->id) {
+            if ($task->owner) {
+                $task->owner->notify(new \App\Notifications\TaskAssigned($task, $request->user()->name));
+            }
+        }
+
+        if (isset($data['status']) && $data['status'] !== $oldStatus) {
+            $usersToNotify = collect();
+            if ($task->owner_id && $task->owner_id !== $request->user()->id) {
+                $usersToNotify->push($task->owner);
+            }
+            if ($task->created_by && $task->created_by !== $request->user()->id) {
+                $usersToNotify->push($task->creator);
+            }
+            $usersToNotify->filter()->unique('id')->each(function ($user) use ($task, $request) {
+                $user->notify(new \App\Notifications\TaskStatusChanged($task, $task->status, $request->user()->name));
+            });
+        }
 
         AuditEvent::create([
             'user_id' => $request->user()->id,

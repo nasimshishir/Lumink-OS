@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Business;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -58,6 +59,7 @@ class BusinessController extends Controller
 
         return Inertia::render('businesses/show', [
             'business' => $business,
+            'users' => User::orderBy('name')->get(['id', 'name']),
             'profitability' => [
                 'directExpenses' => $directExpenses,
                 'trackedMinutes' => $trackedMinutes,

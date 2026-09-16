@@ -37,5 +37,7 @@ createInertiaApp({
     },
 });
 
-document.documentElement.classList.remove('dark');
-document.documentElement.style.colorScheme = 'light';
+if (typeof document !== 'undefined') {
+    document.documentElement.classList.remove('dark');
+    document.documentElement.style.colorScheme = 'light';
+}

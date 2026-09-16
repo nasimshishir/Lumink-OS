@@ -30,4 +30,9 @@ class ApprovalRequest extends Model
     {
         return $this->hasMany(ApprovalResponse::class);
     }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 }

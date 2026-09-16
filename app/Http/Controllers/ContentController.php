@@ -25,16 +25,21 @@ class ContentController extends Controller
 
     public function show(ContentItem $contentItem): Response
     {
+        $contentItem->load([
+            'business:id,name,slug,drive_folder_url',
+            'campaign:id,name',
+            'owner:id,name,avatar',
+            'platformVersions',
+            'tasks.owner:id,name,avatar',
+            'approvals' => fn ($query) => $query->with('responses')->latest(),
+        ]);
+
+        $contentItem->approvals->makeVisible('token');
+
         return Inertia::render('content/show', [
-            'content' => $contentItem->load([
-                'business:id,name,slug,drive_folder_url',
-                'campaign:id,name',
-                'owner:id,name,avatar',
-                'platformVersions',
-                'tasks.owner:id,name,avatar',
-                'approvals' => fn ($query) => $query->with('responses')->latest(),
-            ]),
+            'content' => $contentItem,
             'stages' => ContentItem::STAGES,
+            'users' => \App\Models\User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -46,21 +51,55 @@ class ContentController extends Controller
             'hook' => ['sometimes', 'nullable', 'string'],
             'script' => ['sometimes', 'nullable', 'string'],
             'cta' => ['sometimes', 'nullable', 'string'],
+            'target_audience' => ['sometimes', 'nullable', 'string'],
+            'featured_items' => ['sometimes', 'nullable', 'string'],
             'shoot_notes' => ['sometimes', 'nullable', 'string'],
         ]);
 
-        if (isset($data['stage']) && $data['stage'] !== $contentItem->stage) {
+        if (isset($data['featured_items'])) {
+            $items = array_filter(array_map('trim', explode(',', $data['featured_items'])));
+            $data['featured_items'] = empty($items) ? null : array_values($items);
+        }
+
+        $oldStage = $contentItem->stage;
+        $contentItem->update($data);
+
+        if (isset($data['stage']) && $data['stage'] !== $oldStage) {
             AuditEvent::create([
                 'user_id' => $request->user()->id,
                 'event' => 'content.stage_changed',
                 'auditable_type' => ContentItem::class,
                 'auditable_id' => $contentItem->id,
-                'metadata' => ['from' => $contentItem->stage, 'to' => $data['stage']],
+                'metadata' => ['from' => $oldStage, 'to' => $data['stage']],
             ]);
+
+            if ($contentItem->owner_id && $contentItem->owner_id !== $request->user()->id) {
+                if ($contentItem->owner) {
+                    $contentItem->owner->notify(new \App\Notifications\ContentStageChanged($contentItem, $data['stage'], $request->user()->name));
+                }
+            }
         }
 
-        $contentItem->update($data);
-
         return back();
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'type' => ['required', 'string', 'in:reel,story,static,carousel,other'],
+            'business_id' => ['required', 'exists:businesses,id'],
+            'publish_at' => ['nullable', 'date'],
+        ]);
+
+        $content = ContentItem::create([
+            ...$data,
+            'stage' => 'idea',
+            'priority' => 'medium',
+            'revision_number' => 1,
+            'owner_id' => $request->user()->id,
+        ]);
+
+        return to_route('content.show', $content);
     }
 }
