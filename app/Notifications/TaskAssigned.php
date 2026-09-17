@@ -15,11 +15,13 @@ class TaskAssigned extends Notification
         public string $assignerName
     ) {}
 
+    /** @return array<int, string> */
     public function via(object $notifiable): array
     {
         return ['database'];
     }
 
+    /** @return array<string, string|int> */
     public function toArray(object $notifiable): array
     {
         return [

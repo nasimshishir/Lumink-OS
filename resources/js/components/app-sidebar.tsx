@@ -24,10 +24,18 @@ import {
 } from '@/components/ui/sidebar';
 import type { NavItem } from '@/types';
 
-const allNavItems: (NavItem & { ownerOnly?: boolean })[] = [
+const allNavItems: (NavItem & {
+    ownerOnly?: boolean;
+    operationsOnly?: boolean;
+})[] = [
     { title: 'Today', href: '/today', icon: LayoutDashboard },
     { title: 'My Work', href: '/my-work', icon: ClipboardCheck },
-    { title: 'Businesses', href: '/businesses', icon: BriefcaseBusiness },
+    {
+        title: 'Businesses',
+        href: '/businesses',
+        icon: BriefcaseBusiness,
+        operationsOnly: true,
+    },
     { title: 'Content', href: '/content', icon: Video },
     { title: 'Calendar', href: '/calendar', icon: CalendarDays },
     {
@@ -45,7 +53,9 @@ export function AppSidebar() {
     const { auth } = usePage().props;
     const role = auth.user?.role as string | undefined;
     const navItems = allNavItems.filter(
-        (item) => !item.ownerOnly || role === 'owner',
+        (item) =>
+            (!item.ownerOnly || role === 'owner') &&
+            (!item.operationsOnly || role === 'owner' || role === 'manager'),
     );
 
     return (

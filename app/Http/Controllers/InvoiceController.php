@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class InvoiceController extends Controller
 {
@@ -19,12 +20,12 @@ class InvoiceController extends Controller
             'issue_date' => ['required', 'date'],
             'due_date' => ['required', 'date', 'after_or_equal:issue_date'],
             'description' => ['required', 'string', 'max:180'],
-            'amount' => ['required', 'numeric', 'min:0'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
             'notes' => ['nullable', 'string'],
         ]);
 
         $invoice = DB::transaction(function () use ($data, $request) {
-            $number = 'INV-'.now()->format('Ym').'-'.str_pad((string) (Invoice::count() + 1), 3, '0', STR_PAD_LEFT);
+            $number = 'INV-'.now()->format('Ym').'-'.Str::upper(Str::random(6));
             $invoice = Invoice::create([
                 'business_id' => $data['business_id'],
                 'number' => $number,

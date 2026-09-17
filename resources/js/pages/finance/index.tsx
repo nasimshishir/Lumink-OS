@@ -38,6 +38,7 @@ type Invoice = {
     id: number;
     number: string;
     status: string;
+    effective_status: string;
     issue_date: string;
     due_date: string;
     total: string;
@@ -188,6 +189,118 @@ function InvoiceDialog({ businesses }: { businesses: Business[] }) {
     );
 }
 
+function PaymentDialog({ invoice }: { invoice: Invoice }) {
+    const [open, setOpen] = useState(false);
+    const form = useForm({
+        amount: invoice.balance,
+        paid_on: defaultIssueDate,
+        method: 'Bank transfer',
+        reference: '',
+    });
+
+    function submit(event: FormEvent) {
+        event.preventDefault();
+        form.post(`/invoices/${invoice.id}/payments`, {
+            preserveScroll: true,
+            onSuccess: () => setOpen(false),
+        });
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                    Record payment
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <form onSubmit={submit} className="flex flex-col gap-5">
+                    <DialogHeader>
+                        <DialogTitle>Record payment</DialogTitle>
+                        <DialogDescription>
+                            {invoice.number} has {money(invoice.balance)}{' '}
+                            outstanding.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor={`payment-amount-${invoice.id}`}>
+                                Amount
+                            </Label>
+                            <Input
+                                id={`payment-amount-${invoice.id}`}
+                                type="number"
+                                min="0.01"
+                                max={invoice.balance}
+                                step="0.01"
+                                required
+                                value={form.data.amount}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'amount',
+                                        Number(event.target.value),
+                                    )
+                                }
+                            />
+                            {form.errors.amount && (
+                                <p className="text-sm text-destructive">
+                                    {form.errors.amount}
+                                </p>
+                            )}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor={`payment-date-${invoice.id}`}>
+                                Payment date
+                            </Label>
+                            <Input
+                                id={`payment-date-${invoice.id}`}
+                                type="date"
+                                required
+                                value={form.data.paid_on}
+                                onChange={(event) =>
+                                    form.setData('paid_on', event.target.value)
+                                }
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor={`payment-method-${invoice.id}`}>
+                                Method
+                            </Label>
+                            <Input
+                                id={`payment-method-${invoice.id}`}
+                                value={form.data.method}
+                                onChange={(event) =>
+                                    form.setData('method', event.target.value)
+                                }
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor={`payment-reference-${invoice.id}`}>
+                                Reference
+                            </Label>
+                            <Input
+                                id={`payment-reference-${invoice.id}`}
+                                value={form.data.reference}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'reference',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit" disabled={form.processing}>
+                            Save payment
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function ExpenseDialog({ businesses }: { businesses: Business[] }) {
     const [open, setOpen] = useState(false);
     const form = useForm({
@@ -270,7 +383,9 @@ function ExpenseDialog({ businesses }: { businesses: Business[] }) {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
-                                        <SelectItem value="none">None / Agency</SelectItem>
+                                        <SelectItem value="none">
+                                            None / Agency
+                                        </SelectItem>
                                         {businesses.map((business) => (
                                             <SelectItem
                                                 key={business.id}
@@ -504,21 +619,34 @@ export default function Finance({
                                             </td>
                                             <td>
                                                 <StatusBadge
-                                                    value={invoice.status}
+                                                    value={
+                                                        invoice.effective_status
+                                                    }
                                                 />
                                             </td>
                                             <td>
-                                                <Button
-                                                    asChild
-                                                    size="sm"
-                                                    variant="ghost"
-                                                >
-                                                    <a
-                                                        href={`/invoices/${invoice.id}/pdf`}
+                                                <div className="flex items-center gap-2">
+                                                    {invoice.balance > 0 &&
+                                                        invoice.effective_status !==
+                                                            'cancelled' && (
+                                                            <PaymentDialog
+                                                                invoice={
+                                                                    invoice
+                                                                }
+                                                            />
+                                                        )}
+                                                    <Button
+                                                        asChild
+                                                        size="sm"
+                                                        variant="ghost"
                                                     >
-                                                        PDF
-                                                    </a>
-                                                </Button>
+                                                        <a
+                                                            href={`/invoices/${invoice.id}/pdf`}
+                                                        >
+                                                            PDF
+                                                        </a>
+                                                    </Button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}

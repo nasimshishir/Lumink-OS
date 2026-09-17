@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\GoogleProvider;
+use LogicException;
 use Symfony\Component\HttpFoundation\RedirectResponse as SymfonyRedirectResponse;
 
 class GoogleAuthController extends Controller
@@ -25,7 +27,7 @@ class GoogleAuthController extends Controller
             'nonce' => Str::random(40),
         ], JSON_THROW_ON_ERROR));
 
-        return Socialite::driver('google')
+        return $this->googleProvider()
             ->stateless()
             ->with(['state' => $state])
             ->redirect();
@@ -35,14 +37,16 @@ class GoogleAuthController extends Controller
     {
         $this->validateState($request);
 
-        $googleUser = Socialite::driver('google')->stateless()->user();
-        $email = strtolower($googleUser->getEmail());
+        $googleUser = $this->googleProvider()->stateless()->user();
+        $googleEmail = $googleUser->getEmail();
+        abort_unless(is_string($googleEmail) && $googleEmail !== '', 403, 'Google did not provide an email address.');
+        $email = strtolower($googleEmail);
 
         $user = User::query()->where('email', $email)->first();
 
         if (! $user) {
             $invitation = Invitation::where('email', $email)->whereNull('accepted_at')->first();
-            abort_unless($invitation, 403, 'This Google account has not been invited.');
+            abort_unless($invitation !== null, 403, 'This Google account has not been invited.');
 
             $user = User::create([
                 'name' => $googleUser->getName(),
@@ -83,9 +87,9 @@ class GoogleAuthController extends Controller
 
         $userId = Cache::pull("google-login:{$token}");
 
-        abort_unless($userId, 403, 'Google sign-in token is invalid or expired.');
+        abort_unless(is_int($userId) || (is_string($userId) && ctype_digit($userId)), 403, 'Google sign-in token is invalid or expired.');
 
-        $user = User::findOrFail($userId);
+        $user = User::query()->findOrFail((int) $userId);
 
         abort_unless($user->is_active, 403, 'This Google account is disabled.');
 
@@ -120,5 +124,16 @@ class GoogleAuthController extends Controller
             419,
             'Google sign-in state is invalid or expired.',
         );
+    }
+
+    private function googleProvider(): GoogleProvider
+    {
+        $provider = Socialite::driver('google');
+
+        if (! $provider instanceof GoogleProvider) {
+            throw new LogicException('The configured Google Socialite driver is invalid.');
+        }
+
+        return $provider;
     }
 }

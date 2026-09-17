@@ -16,11 +16,13 @@ class ApprovalResponded extends Notification
         public ApprovalResponse $response
     ) {}
 
+    /** @return array<int, string> */
     public function via(object $notifiable): array
     {
         return ['database'];
     }
 
+    /** @return array<string, string|int> */
     public function toArray(object $notifiable): array
     {
         $contentTitle = $this->request->contentItem->title;

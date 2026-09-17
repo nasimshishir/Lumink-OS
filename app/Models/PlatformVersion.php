@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/** @property int $id */
 class PlatformVersion extends Model
 {
     protected $guarded = [];
@@ -17,6 +18,7 @@ class PlatformVersion extends Model
         ];
     }
 
+    /** @return BelongsTo<ContentItem, $this> */
     public function contentItem(): BelongsTo
     {
         return $this->belongsTo(ContentItem::class);

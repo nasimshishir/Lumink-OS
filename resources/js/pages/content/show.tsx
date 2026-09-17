@@ -9,10 +9,10 @@ import {
     Video,
 } from 'lucide-react';
 import { useState } from 'react';
-import { StatusBadge } from '@/components/status-badge';
-import { Button } from '@/components/ui/button';
 import { AddTaskDialog } from '@/components/add-task-dialog';
 import { EditContentDetailsDialog } from '@/components/edit-content-details-dialog';
+import { StatusBadge } from '@/components/status-badge';
+import { Button } from '@/components/ui/button';
 import { dateTime, humanize } from '@/lib/format';
 
 type PlatformVersion = {
@@ -279,10 +279,10 @@ export default function ContentShow({
                             <h2 className="font-semibold">
                                 Assigned production tasks
                             </h2>
-                            <AddTaskDialog 
-                                businessId={content.business.id} 
-                                contentId={content.id} 
-                                users={users} 
+                            <AddTaskDialog
+                                businessId={content.business.id}
+                                contentId={content.id}
+                                users={users}
                             />
                         </div>
                         <table className="lumink-table">

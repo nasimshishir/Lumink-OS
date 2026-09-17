@@ -1,12 +1,19 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowRight, Filter, Plus, Search } from 'lucide-react';
+import { ArrowRight, Search } from 'lucide-react';
 import { useState } from 'react';
+import { AddContentDialog } from '@/components/add-content-dialog';
 import { PageHeading } from '@/components/page-heading';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AddContentDialog } from '@/components/add-content-dialog';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { dateTime, humanize } from '@/lib/format';
 
 type Content = {
@@ -34,8 +41,13 @@ export default function ContentIndex({
     const [filterBusiness, setFilterBusiness] = useState('all');
 
     const filteredContent = content.filter((item) => {
-        const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || item.type.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesBusiness = filterBusiness === 'all' || item.business.id.toString() === filterBusiness;
+        const matchesSearch =
+            item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.type.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesBusiness =
+            filterBusiness === 'all' ||
+            item.business.id.toString() === filterBusiness;
+
         return matchesSearch && matchesBusiness;
     });
 
@@ -51,22 +63,32 @@ export default function ContentIndex({
                 <section className="lumink-panel flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
                     <div className="relative max-w-md flex-1">
                         <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input 
-                            className="pl-9" 
-                            placeholder="Search content…" 
+                        <Input
+                            className="pl-9"
+                            placeholder="Search content…"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <Select value={filterBusiness} onValueChange={setFilterBusiness}>
+                    <Select
+                        value={filterBusiness}
+                        onValueChange={setFilterBusiness}
+                    >
                         <SelectTrigger className="w-full sm:w-[200px]">
                             <SelectValue placeholder="All businesses" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectGroup>
-                                <SelectItem value="all">All businesses</SelectItem>
+                                <SelectItem value="all">
+                                    All businesses
+                                </SelectItem>
                                 {businesses.map((business) => (
-                                    <SelectItem key={business.id} value={business.id.toString()}>{business.name}</SelectItem>
+                                    <SelectItem
+                                        key={business.id}
+                                        value={business.id.toString()}
+                                    >
+                                        {business.name}
+                                    </SelectItem>
                                 ))}
                             </SelectGroup>
                         </SelectContent>

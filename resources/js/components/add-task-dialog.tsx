@@ -95,7 +95,11 @@ export function AddTaskDialog({
                             }
                             required
                         />
-                        {form.errors.title && <div className="text-red-500 text-sm">{form.errors.title}</div>}
+                        {form.errors.title && (
+                            <div className="text-sm text-red-500">
+                                {form.errors.title}
+                            </div>
+                        )}
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                         {!businessId && (
@@ -104,7 +108,10 @@ export function AddTaskDialog({
                                 <Select
                                     value={form.data.business_id || 'none'}
                                     onValueChange={(value) =>
-                                        form.setData('business_id', value === 'none' ? null : value)
+                                        form.setData(
+                                            'business_id',
+                                            value === 'none' ? null : value,
+                                        )
                                     }
                                 >
                                     <SelectTrigger className="w-full">
@@ -112,7 +119,9 @@ export function AddTaskDialog({
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectGroup>
-                                            <SelectItem value="none">Agency task</SelectItem>
+                                            <SelectItem value="none">
+                                                Agency task
+                                            </SelectItem>
                                             {businesses.map((business) => (
                                                 <SelectItem
                                                     key={business.id}
@@ -124,7 +133,11 @@ export function AddTaskDialog({
                                         </SelectGroup>
                                     </SelectContent>
                                 </Select>
-                                {form.errors.business_id && <div className="text-red-500 text-sm">{form.errors.business_id}</div>}
+                                {form.errors.business_id && (
+                                    <div className="text-sm text-red-500">
+                                        {form.errors.business_id}
+                                    </div>
+                                )}
                             </div>
                         )}
                         <div className="flex flex-col gap-2">
@@ -132,7 +145,10 @@ export function AddTaskDialog({
                             <Select
                                 value={form.data.owner_id || 'none'}
                                 onValueChange={(value) =>
-                                    form.setData('owner_id', value === 'none' ? null : value)
+                                    form.setData(
+                                        'owner_id',
+                                        value === 'none' ? null : value,
+                                    )
                                 }
                             >
                                 <SelectTrigger className="w-full">
@@ -140,7 +156,9 @@ export function AddTaskDialog({
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
-                                        <SelectItem value="none">Unassigned</SelectItem>
+                                        <SelectItem value="none">
+                                            Unassigned
+                                        </SelectItem>
                                         {users.map((user) => (
                                             <SelectItem
                                                 key={user.id}
@@ -152,7 +170,11 @@ export function AddTaskDialog({
                                     </SelectGroup>
                                 </SelectContent>
                             </Select>
-                            {form.errors.owner_id && <div className="text-red-500 text-sm">{form.errors.owner_id}</div>}
+                            {form.errors.owner_id && (
+                                <div className="text-sm text-red-500">
+                                    {form.errors.owner_id}
+                                </div>
+                            )}
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="task-due">Due</Label>
@@ -161,7 +183,12 @@ export function AddTaskDialog({
                                 type="datetime-local"
                                 value={form.data.due_at || ''}
                                 onChange={(event) =>
-                                    form.setData('due_at', event.target.value === '' ? null : event.target.value)
+                                    form.setData(
+                                        'due_at',
+                                        event.target.value === ''
+                                            ? null
+                                            : event.target.value,
+                                    )
                                 }
                             />
                         </div>
@@ -195,15 +222,29 @@ export function AddTaskDialog({
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
-                                        <SelectItem value="general">General</SelectItem>
-                                        <SelectItem value="shoot">Shoot</SelectItem>
-                                        <SelectItem value="editing">Editing</SelectItem>
-                                        <SelectItem value="design">Design</SelectItem>
-                                        <SelectItem value="admin">Admin</SelectItem>
+                                        <SelectItem value="general">
+                                            General
+                                        </SelectItem>
+                                        <SelectItem value="shoot">
+                                            Shoot
+                                        </SelectItem>
+                                        <SelectItem value="editing">
+                                            Editing
+                                        </SelectItem>
+                                        <SelectItem value="design">
+                                            Design
+                                        </SelectItem>
+                                        <SelectItem value="admin">
+                                            Admin
+                                        </SelectItem>
                                     </SelectGroup>
                                 </SelectContent>
                             </Select>
-                            {form.errors.type && <div className="text-red-500 text-sm">{form.errors.type}</div>}
+                            {form.errors.type && (
+                                <div className="text-sm text-red-500">
+                                    {form.errors.type}
+                                </div>
+                            )}
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label>Priority</Label>
@@ -219,8 +260,12 @@ export function AddTaskDialog({
                                 <SelectContent>
                                     <SelectGroup>
                                         <SelectItem value="low">Low</SelectItem>
-                                        <SelectItem value="medium">Medium</SelectItem>
-                                        <SelectItem value="high">High</SelectItem>
+                                        <SelectItem value="medium">
+                                            Medium
+                                        </SelectItem>
+                                        <SelectItem value="high">
+                                            High
+                                        </SelectItem>
                                     </SelectGroup>
                                 </SelectContent>
                             </Select>

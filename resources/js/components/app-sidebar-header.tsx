@@ -2,9 +2,6 @@ import { usePage, router } from '@inertiajs/react';
 import { Bell, Search } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { useInitials } from '@/hooks/use-initials';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -12,6 +9,9 @@ import {
     DropdownMenuLabel,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import { useInitials } from '@/hooks/use-initials';
 
 interface NotificationData {
     title: string;
@@ -51,11 +51,20 @@ export function AppSidebarHeader() {
             const diffHours = Math.floor(diffMins / 60);
             const diffDays = Math.floor(diffHours / 24);
 
-            if (diffMins < 1) return 'just now';
-            if (diffMins < 60) return `${diffMins}m ago`;
-            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffMins < 1) {
+                return 'just now';
+            }
+
+            if (diffMins < 60) {
+                return `${diffMins}m ago`;
+            }
+
+            if (diffHours < 24) {
+                return `${diffHours}h ago`;
+            }
+
             return `${diffDays}d ago`;
-        } catch (e) {
+        } catch {
             return '';
         }
     };
@@ -80,29 +89,40 @@ export function AppSidebarHeader() {
                             className="relative"
                         >
                             <Bell className="size-5" />
-                            {notifications && notifications.unread_count > 0 && (
-                                <span className="absolute top-1 right-1 flex size-2.5">
-                                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75"></span>
-                                    <span className="relative inline-flex size-2.5 rounded-full bg-destructive"></span>
-                                </span>
-                            )}
+                            {notifications &&
+                                notifications.unread_count > 0 && (
+                                    <span className="absolute top-1 right-1 flex size-2.5">
+                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75"></span>
+                                        <span className="relative inline-flex size-2.5 rounded-full bg-destructive"></span>
+                                    </span>
+                                )}
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-80 max-h-[400px] overflow-y-auto" align="end">
-                        <div className="flex items-center justify-between px-4 py-2 border-b">
-                            <DropdownMenuLabel className="font-semibold p-0 text-sm">Notifications</DropdownMenuLabel>
-                            {notifications && notifications.unread_count > 0 && (
-                                <Button
-                                    variant="link"
-                                    className="h-auto p-0 text-xs text-primary font-medium hover:underline"
-                                    onClick={() => router.post('/notifications/read-all')}
-                                >
-                                    Mark all as read
-                                </Button>
-                            )}
+                    <DropdownMenuContent
+                        className="max-h-[400px] w-80 overflow-y-auto"
+                        align="end"
+                    >
+                        <div className="flex items-center justify-between border-b px-4 py-2">
+                            <DropdownMenuLabel className="p-0 text-sm font-semibold">
+                                Notifications
+                            </DropdownMenuLabel>
+                            {notifications &&
+                                notifications.unread_count > 0 && (
+                                    <Button
+                                        variant="link"
+                                        className="h-auto p-0 text-xs font-medium text-primary hover:underline"
+                                        onClick={() =>
+                                            router.post(
+                                                '/notifications/read-all',
+                                            )
+                                        }
+                                    >
+                                        Mark all as read
+                                    </Button>
+                                )}
                         </div>
 
-                        {(!notifications || notifications.list.length === 0) ? (
+                        {!notifications || notifications.list.length === 0 ? (
                             <div className="py-8 text-center text-sm text-muted-foreground">
                                 No notifications
                             </div>
@@ -114,24 +134,34 @@ export function AppSidebarHeader() {
                                     return (
                                         <DropdownMenuItem
                                             key={notification.id}
-                                            className={`flex flex-col items-start gap-1 p-3 cursor-pointer border-b last:border-b-0 focus:bg-accent transition-colors ${
-                                                isUnread ? 'bg-primary/5 hover:bg-primary/10' : ''
+                                            className={`flex cursor-pointer flex-col items-start gap-1 border-b p-3 transition-colors last:border-b-0 focus:bg-accent ${
+                                                isUnread
+                                                    ? 'bg-primary/5 hover:bg-primary/10'
+                                                    : ''
                                             }`}
-                                            onClick={() => router.post(`/notifications/${notification.id}/read`)}
+                                            onClick={() =>
+                                                router.post(
+                                                    `/notifications/${notification.id}/read`,
+                                                )
+                                            }
                                         >
-                                            <div className="flex items-start justify-between w-full gap-2">
-                                                <span className={`text-xs font-semibold ${isUnread ? 'text-primary' : 'text-foreground'}`}>
+                                            <div className="flex w-full items-start justify-between gap-2">
+                                                <span
+                                                    className={`text-xs font-semibold ${isUnread ? 'text-primary' : 'text-foreground'}`}
+                                                >
                                                     {notification.data.title}
                                                 </span>
                                                 {isUnread && (
-                                                    <span className="size-1.5 rounded-full bg-primary mt-1 shrink-0" />
+                                                    <span className="mt-1 size-1.5 shrink-0 rounded-full bg-primary" />
                                                 )}
                                             </div>
-                                            <p className="text-xs text-muted-foreground text-left leading-relaxed">
+                                            <p className="text-left text-xs leading-relaxed text-muted-foreground">
                                                 {notification.data.description}
                                             </p>
-                                            <span className="text-[10px] text-muted-foreground font-light">
-                                                {formatTimeAgo(notification.created_at)}
+                                            <span className="text-[10px] font-light text-muted-foreground">
+                                                {formatTimeAgo(
+                                                    notification.created_at,
+                                                )}
                                             </span>
                                         </DropdownMenuItem>
                                     );

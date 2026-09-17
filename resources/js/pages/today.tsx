@@ -45,6 +45,7 @@ export default function Today({
     activity,
     businesses,
     users,
+    canCreateTasks,
 }: {
     tasks: Task[];
     summary: {
@@ -60,10 +61,11 @@ export default function Today({
         directCosts: number;
         outstanding: number;
         hiringThreshold: number;
-    };
+    } | null;
     activity: { id: number; event: string; created_at: string }[];
     businesses: Person[];
     users: Person[];
+    canCreateTasks: boolean;
 }) {
     const markDone = (task: Task) =>
         router.patch(
@@ -71,10 +73,12 @@ export default function Today({
             { status: 'done' },
             { preserveScroll: true },
         );
-    const progress = Math.min(
-        100,
-        Math.round((finance.revenue / finance.hiringThreshold) * 100),
-    );
+    const progress = finance
+        ? Math.min(
+              100,
+              Math.round((finance.revenue / finance.hiringThreshold) * 100),
+          )
+        : 0;
     const stages = [
         'planned',
         'scripted',
@@ -111,7 +115,9 @@ export default function Today({
                     year: 'numeric',
                 }).format(new Date())}
                 actions={
-                    <AddTaskDialog businesses={businesses} users={users} />
+                    canCreateTasks ? (
+                        <AddTaskDialog businesses={businesses} users={users} />
+                    ) : undefined
                 }
             />
             <main className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(330px,1fr)]">
@@ -171,16 +177,9 @@ export default function Today({
                                                 </p>
                                             </td>
                                             <td>
-                                                {task.business ? (
-                                                    <Link
-                                                        className="font-medium text-primary hover:underline"
-                                                        href={`/businesses/${task.business.id}`}
-                                                    >
-                                                        {task.business.name}
-                                                    </Link>
-                                                ) : (
-                                                    'Agency'
-                                                )}
+                                                {task.business
+                                                    ? task.business.name
+                                                    : 'Agency'}
                                             </td>
                                             <td>
                                                 <div className="flex items-center gap-2">
@@ -282,25 +281,27 @@ export default function Today({
                 </div>
 
                 <aside className="flex min-w-0 flex-col gap-5">
-                    <section className="lumink-panel p-4">
-                        <h2 className="font-semibold">
-                            Content production progress
-                        </h2>
-                        <div className="mt-5 grid grid-cols-7 gap-1">
-                            {stages.map((stage, index) => (
-                                <div key={stage} className="text-center">
-                                    <div
-                                        className={`mx-auto flex size-8 items-center justify-center rounded-full border text-xs font-semibold ${index < 4 ? 'bg-primary text-primary-foreground' : 'bg-background'}`}
-                                    >
-                                        {contentProgress[stage] ?? 0}
+                    {finance && (
+                        <section className="lumink-panel p-4">
+                            <h2 className="font-semibold">
+                                Content production progress
+                            </h2>
+                            <div className="mt-5 grid grid-cols-7 gap-1">
+                                {stages.map((stage, index) => (
+                                    <div key={stage} className="text-center">
+                                        <div
+                                            className={`mx-auto flex size-8 items-center justify-center rounded-full border text-xs font-semibold ${index < 4 ? 'bg-primary text-primary-foreground' : 'bg-background'}`}
+                                        >
+                                            {contentProgress[stage] ?? 0}
+                                        </div>
+                                        <p className="mt-2 truncate text-[10px] text-muted-foreground">
+                                            {humanize(stage)}
+                                        </p>
                                     </div>
-                                    <p className="mt-2 truncate text-[10px] text-muted-foreground">
-                                        {humanize(stage)}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
+                                ))}
+                            </div>
+                        </section>
+                    )}
 
                     <section className="lumink-panel overflow-hidden">
                         <div className="flex items-center justify-between border-b px-4 py-3">
@@ -343,25 +344,25 @@ export default function Today({
                             <div>
                                 <p className="lumink-label">Revenue</p>
                                 <p className="mt-1 font-semibold">
-                                    {money(finance.revenue)}
+                                    {money(finance?.revenue ?? 0)}
                                 </p>
                             </div>
                             <div>
                                 <p className="lumink-label">Direct costs</p>
                                 <p className="mt-1 font-semibold">
-                                    {money(finance.directCosts)}
+                                    {money(finance?.directCosts ?? 0)}
                                 </p>
                             </div>
                             <div>
                                 <p className="lumink-label">Outstanding</p>
                                 <p className="mt-1 font-semibold">
-                                    {money(finance.outstanding)}
+                                    {money(finance?.outstanding ?? 0)}
                                 </p>
                             </div>
                             <div>
                                 <p className="lumink-label">Hiring threshold</p>
                                 <p className="mt-1 font-semibold">
-                                    {money(finance.hiringThreshold)}
+                                    {money(finance?.hiringThreshold ?? 0)}
                                 </p>
                             </div>
                         </div>

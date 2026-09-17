@@ -6,8 +6,10 @@ use App\Models\ApprovalRequest;
 use App\Models\ApprovalResponse;
 use App\Models\AuditEvent;
 use App\Models\ContentItem;
+use App\Notifications\ApprovalResponded;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,7 +37,7 @@ class ApprovalController extends Controller
             ->with('contentItem.business:id,name,logo_url')
             ->firstOrFail();
 
-        abort_if($approval->revoked_at || $approval->expires_at->isPast(), 410, 'This approval link has expired.');
+        abort_if($approval->revoked_at !== null || $approval->expires_at->isPast(), 410, 'This approval link has expired.');
         $approval->makeVisible('token');
 
         return Inertia::render('approval/show', ['approval' => $approval]);
@@ -44,7 +46,8 @@ class ApprovalController extends Controller
     public function respond(Request $request, string $token): RedirectResponse
     {
         $approval = ApprovalRequest::where('token', $token)->firstOrFail();
-        abort_if($approval->revoked_at || $approval->expires_at->isPast(), 410);
+        abort_if($approval->revoked_at !== null || $approval->expires_at->isPast(), 410);
+        abort_if($approval->responded_at !== null, 409, 'This approval request has already been completed.');
 
         $data = $request->validate([
             'client_name' => ['required', 'string', 'max:120'],
@@ -52,23 +55,46 @@ class ApprovalController extends Controller
             'comment' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $response = ApprovalResponse::create([
-            ...$data,
-            'approval_request_id' => $approval->id,
-            'ip_address' => $request->ip(),
-        ]);
+        [$approval, $response] = DB::transaction(function () use ($approval, $data, $request): array {
+            $lockedApproval = ApprovalRequest::query()
+                ->with('contentItem')
+                ->lockForUpdate()
+                ->findOrFail($approval->id);
 
-        $approval->update([
-            'status' => $data['action'],
-            'responded_at' => now(),
-        ]);
+            abort_if($lockedApproval->responded_at !== null, 409, 'This approval request has already been completed.');
+            abort_if(
+                $lockedApproval->contentItem->revision_number !== $lockedApproval->version,
+                409,
+                'This content version has changed. Ask Lumink for a new approval link.',
+            );
 
-        $approval->contentItem->update([
-            'stage' => $data['action'] === 'approved' ? 'approved' : 'editing',
-            'revision_number' => $data['action'] === 'approved'
-                ? $approval->contentItem->revision_number
-                : $approval->contentItem->revision_number + 1,
-        ]);
+            $response = ApprovalResponse::create([
+                ...$data,
+                'approval_request_id' => $lockedApproval->id,
+                'ip_address' => $request->ip(),
+            ]);
+
+            $lockedApproval->update([
+                'status' => $data['action'],
+                'responded_at' => now(),
+            ]);
+
+            $lockedApproval->contentItem->update([
+                'stage' => $data['action'] === 'approved' ? 'approved' : 'editing',
+                'revision_number' => $data['action'] === 'approved'
+                    ? $lockedApproval->contentItem->revision_number
+                    : $lockedApproval->contentItem->revision_number + 1,
+            ]);
+
+            AuditEvent::create([
+                'event' => 'approval.responded',
+                'auditable_type' => ApprovalRequest::class,
+                'auditable_id' => $lockedApproval->id,
+                'metadata' => $data,
+            ]);
+
+            return [$lockedApproval, $response];
+        });
 
         // Notify content owner and approval creator
         $contentItem = $approval->contentItem;
@@ -81,15 +107,8 @@ class ApprovalController extends Controller
         }
 
         $usersToNotify->filter()->unique('id')->each(function ($user) use ($approval, $response) {
-            $user->notify(new \App\Notifications\ApprovalResponded($approval, $response));
+            $user->notify(new ApprovalResponded($approval, $response));
         });
-
-        AuditEvent::create([
-            'event' => 'approval.responded',
-            'auditable_type' => ApprovalRequest::class,
-            'auditable_id' => $approval->id,
-            'metadata' => $data,
-        ]);
 
         return back()->with('success', 'Your response has been recorded.');
     }

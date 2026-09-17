@@ -3,7 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property string $access_token
+ * @property string|null $refresh_token
+ * @property Carbon|null $expires_at
+ * @property string|null $root_folder_id
+ */
 class DriveConnection extends Model
 {
     protected $guarded = [];

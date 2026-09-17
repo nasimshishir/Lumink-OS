@@ -12,8 +12,10 @@ use Inertia\Response;
 
 class BusinessController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        abort_unless($request->user()->can('viewAny', Business::class), 403);
+
         return Inertia::render('businesses/index', [
             'businesses' => Business::withCount(['contentItems', 'tasks'])
                 ->orderBy('name')
@@ -23,7 +25,7 @@ class BusinessController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->canManageOperations(), 403);
+        abort_unless($request->user()->can('create', Business::class), 403);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
@@ -44,14 +46,18 @@ class BusinessController extends Controller
         return to_route('businesses.show', $business);
     }
 
-    public function show(Business $business): Response
+    public function show(Request $request, Business $business): Response
     {
+        abort_unless($request->user()->can('view', $business), 403);
+
         $business->load([
             'campaigns' => fn ($query) => $query->latest('starts_on'),
             'contentItems' => fn ($query) => $query->with('owner:id,name')->orderBy('publish_at'),
             'tasks' => fn ($query) => $query->with('owner:id,name')->where('status', '!=', 'done')->orderBy('due_at'),
             'performancePeriods' => fn ($query) => $query->latest('ends_on')->limit(4),
-            'expenses' => fn ($query) => $query->whereBetween('spent_on', [now()->startOfMonth(), now()->endOfMonth()]),
+            'expenses' => fn ($query) => $query
+                ->where('allocation_type', 'direct')
+                ->whereBetween('spent_on', [now()->startOfMonth(), now()->endOfMonth()]),
         ]);
 
         $trackedMinutes = $business->tasks->sum('actual_minutes');
@@ -63,7 +69,7 @@ class BusinessController extends Controller
             'profitability' => [
                 'directExpenses' => $directExpenses,
                 'trackedMinutes' => $trackedMinutes,
-                'margin' => max(0, (float) $business->monthly_retainer - $directExpenses),
+                'margin' => (float) $business->monthly_retainer - $directExpenses,
             ],
         ]);
     }

@@ -1,8 +1,8 @@
 import { Head, Link } from '@inertiajs/react';
-import { CalendarDays, ExternalLink, Plus, Target, ArrowRight } from 'lucide-react';
+import { CalendarDays, ExternalLink, Target, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
-import { AddTaskDialog } from '@/components/add-task-dialog';
 import { AddContentDialog } from '@/components/add-content-dialog';
+import { AddTaskDialog } from '@/components/add-task-dialog';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { dateTime, humanize, money, shortDate } from '@/lib/format';
@@ -161,8 +161,8 @@ export default function BusinessShow({
                             onClick={() => setActiveTab(tab)}
                             className={
                                 activeTab === tab
-                                    ? 'border-b-2 border-primary pb-3 text-primary whitespace-nowrap'
-                                    : 'pb-3 text-muted-foreground whitespace-nowrap hover:text-foreground'
+                                    ? 'border-b-2 border-primary pb-3 whitespace-nowrap text-primary'
+                                    : 'pb-3 whitespace-nowrap text-muted-foreground hover:text-foreground'
                             }
                         >
                             {tab}
@@ -173,208 +173,228 @@ export default function BusinessShow({
 
             {activeTab === 'Overview' && (
                 <main className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
-                <div className="flex min-w-0 flex-col gap-5">
-                    <section className="lumink-panel p-4">
-                        <h2 className="font-semibold">This month</h2>
-                        <div className="mt-4 grid gap-5 md:grid-cols-3">
-                            {(['reels', 'stories', 'static'] as const).map(
-                                (key) => {
-                                    const value = delivered[key];
-                                    const target = Number(targets[key] ?? 0);
-                                    const percent = target
-                                        ? Math.min(
-                                              100,
-                                              Math.round(
-                                                  (value / target) * 100,
-                                              ),
-                                          )
-                                        : 0;
+                    <div className="flex min-w-0 flex-col gap-5">
+                        <section className="lumink-panel p-4">
+                            <h2 className="font-semibold">This month</h2>
+                            <div className="mt-4 grid gap-5 md:grid-cols-3">
+                                {(['reels', 'stories', 'static'] as const).map(
+                                    (key) => {
+                                        const value = delivered[key];
+                                        const target = Number(
+                                            targets[key] ?? 0,
+                                        );
+                                        const percent = target
+                                            ? Math.min(
+                                                  100,
+                                                  Math.round(
+                                                      (value / target) * 100,
+                                                  ),
+                                              )
+                                            : 0;
 
-                                    return (
-                                        <div key={key}>
-                                            <div className="flex justify-between text-sm">
-                                                <span>{humanize(key)}</span>
-                                                <strong>
-                                                    {value} / {target}
-                                                </strong>
+                                        return (
+                                            <div key={key}>
+                                                <div className="flex justify-between text-sm">
+                                                    <span>{humanize(key)}</span>
+                                                    <strong>
+                                                        {value} / {target}
+                                                    </strong>
+                                                </div>
+                                                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                                                    <div
+                                                        className="h-full bg-primary"
+                                                        style={{
+                                                            width: `${percent}%`,
+                                                        }}
+                                                    />
+                                                </div>
                                             </div>
-                                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                                                <div
-                                                    className="h-full bg-primary"
-                                                    style={{
-                                                        width: `${percent}%`,
-                                                    }}
+                                        );
+                                    },
+                                )}
+                            </div>
+                        </section>
+
+                        <section className="lumink-panel overflow-hidden">
+                            <div className="flex items-center justify-between border-b px-4 py-3">
+                                <h2 className="font-semibold">
+                                    Active campaigns
+                                </h2>
+                                <Target className="size-5 text-muted-foreground" />
+                            </div>
+                            {business.campaigns.map((campaign) => (
+                                <div
+                                    key={campaign.id}
+                                    className="grid gap-4 border-b px-4 py-4 last:border-b-0 md:grid-cols-[1.2fr_1fr_1fr_auto]"
+                                >
+                                    <div>
+                                        <p className="font-semibold">
+                                            {campaign.name}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {campaign.objective}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="lumink-label">
+                                            Target audience
+                                        </p>
+                                        <p className="mt-1 text-sm">
+                                            {campaign.target_audience}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="lumink-label">Budget</p>
+                                        <p className="mt-1 text-sm">
+                                            {money(campaign.budget)}
+                                        </p>
+                                    </div>
+                                    <StatusBadge value={campaign.status} />
+                                </div>
+                            ))}
+                        </section>
+
+                        <section className="lumink-panel overflow-hidden">
+                            <div className="border-b px-4 py-3">
+                                <h2 className="font-semibold">Upcoming work</h2>
+                            </div>
+                            <table className="lumink-table">
+                                <thead>
+                                    <tr>
+                                        <th>Due</th>
+                                        <th>Type</th>
+                                        <th>Work</th>
+                                        <th>Owner</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {business.tasks.map((task) => (
+                                        <tr key={task.id}>
+                                            <td>{dateTime(task.due_at)}</td>
+                                            <td>{humanize(task.type)}</td>
+                                            <td className="font-medium">
+                                                {task.title}
+                                            </td>
+                                            <td>
+                                                {task.owner?.name ??
+                                                    'Unassigned'}
+                                            </td>
+                                            <td>
+                                                <StatusBadge
+                                                    value={task.status}
                                                 />
-                                            </div>
-                                        </div>
-                                    );
-                                },
-                            )}
-                        </div>
-                    </section>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </section>
+                    </div>
 
-                    <section className="lumink-panel overflow-hidden">
-                        <div className="flex items-center justify-between border-b px-4 py-3">
-                            <h2 className="font-semibold">Active campaigns</h2>
-                            <Target className="size-5 text-muted-foreground" />
-                        </div>
-                        {business.campaigns.map((campaign) => (
-                            <div
-                                key={campaign.id}
-                                className="grid gap-4 border-b px-4 py-4 last:border-b-0 md:grid-cols-[1.2fr_1fr_1fr_auto]"
-                            >
-                                <div>
-                                    <p className="font-semibold">
-                                        {campaign.name}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {campaign.objective}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="lumink-label">
-                                        Target audience
-                                    </p>
-                                    <p className="mt-1 text-sm">
-                                        {campaign.target_audience}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="lumink-label">Budget</p>
-                                    <p className="mt-1 text-sm">
-                                        {money(campaign.budget)}
-                                    </p>
-                                </div>
-                                <StatusBadge value={campaign.status} />
+                    <aside className="flex min-w-0 flex-col gap-5">
+                        <section className="lumink-panel overflow-hidden">
+                            <div className="border-b px-4 py-3">
+                                <h2 className="font-semibold">
+                                    Recent performance
+                                </h2>
                             </div>
-                        ))}
-                    </section>
-
-                    <section className="lumink-panel overflow-hidden">
-                        <div className="border-b px-4 py-3">
-                            <h2 className="font-semibold">Upcoming work</h2>
-                        </div>
-                        <table className="lumink-table">
-                            <thead>
-                                <tr>
-                                    <th>Due</th>
-                                    <th>Type</th>
-                                    <th>Work</th>
-                                    <th>Owner</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {business.tasks.map((task) => (
-                                    <tr key={task.id}>
-                                        <td>{dateTime(task.due_at)}</td>
-                                        <td>{humanize(task.type)}</td>
-                                        <td className="font-medium">
-                                            {task.title}
-                                        </td>
-                                        <td>
-                                            {task.owner?.name ?? 'Unassigned'}
-                                        </td>
-                                        <td>
-                                            <StatusBadge value={task.status} />
-                                        </td>
+                            <table className="lumink-table">
+                                <thead>
+                                    <tr>
+                                        <th>Period</th>
+                                        <th>Sales change</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </section>
-                </div>
-
-                <aside className="flex min-w-0 flex-col gap-5">
-                    <section className="lumink-panel overflow-hidden">
-                        <div className="border-b px-4 py-3">
-                            <h2 className="font-semibold">
-                                Recent performance
-                            </h2>
-                        </div>
-                        <table className="lumink-table">
-                            <thead>
-                                <tr>
-                                    <th>Period</th>
-                                    <th>Sales change</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {business.performance_periods.map((period) => (
-                                    <tr key={period.id}>
-                                        <td>
-                                            {shortDate(period.starts_on)} –{' '}
-                                            {shortDate(period.ends_on)}
-                                        </td>
-                                        <td className="font-semibold text-primary">
-                                            +{period.sales_change_percent}%
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </section>
-                    <section className="lumink-panel p-4">
-                        <h2 className="font-semibold">
-                            Profitability snapshot
-                        </h2>
-                        <dl className="mt-4 flex flex-col gap-3 text-sm">
-                            <div className="flex justify-between">
-                                <dt className="text-muted-foreground">
-                                    Monthly retainer
-                                </dt>
-                                <dd>{money(business.monthly_retainer)}</dd>
-                            </div>
-                            <div className="flex justify-between">
-                                <dt className="text-muted-foreground">
-                                    Direct expenses
-                                </dt>
-                                <dd>{money(profitability.directExpenses)}</dd>
-                            </div>
-                            <div className="flex justify-between">
-                                <dt className="text-muted-foreground">
-                                    Tracked hours
-                                </dt>
-                                <dd>
-                                    {Math.round(
-                                        profitability.trackedMinutes / 60,
+                                </thead>
+                                <tbody>
+                                    {business.performance_periods.map(
+                                        (period) => (
+                                            <tr key={period.id}>
+                                                <td>
+                                                    {shortDate(
+                                                        period.starts_on,
+                                                    )}{' '}
+                                                    –{' '}
+                                                    {shortDate(period.ends_on)}
+                                                </td>
+                                                <td className="font-semibold text-primary">
+                                                    +
+                                                    {
+                                                        period.sales_change_percent
+                                                    }
+                                                    %
+                                                </td>
+                                            </tr>
+                                        ),
                                     )}
-                                    h
-                                </dd>
-                            </div>
-                            <div className="flex justify-between border-t pt-3 font-semibold">
-                                <dt>Estimated margin</dt>
-                                <dd className="text-primary">
-                                    {money(profitability.margin)}
-                                </dd>
-                            </div>
-                        </dl>
-                    </section>
-                    <section className="lumink-panel overflow-hidden">
-                        <div className="flex items-center gap-2 border-b px-4 py-3">
-                            <CalendarDays className="size-4" />
-                            <h2 className="font-semibold">Active content</h2>
-                        </div>
-                        {business.content_items.slice(0, 6).map((item) => (
-                            <Link
-                                key={item.id}
-                                href={`/content/${item.id}`}
-                                className="flex items-center justify-between gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-muted/50"
-                            >
-                                <div>
-                                    <p className="text-sm font-medium">
-                                        {item.title}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {dateTime(item.publish_at)}
-                                    </p>
+                                </tbody>
+                            </table>
+                        </section>
+                        <section className="lumink-panel p-4">
+                            <h2 className="font-semibold">
+                                Profitability snapshot
+                            </h2>
+                            <dl className="mt-4 flex flex-col gap-3 text-sm">
+                                <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">
+                                        Monthly retainer
+                                    </dt>
+                                    <dd>{money(business.monthly_retainer)}</dd>
                                 </div>
-                                <StatusBadge value={item.stage} />
-                            </Link>
-                        ))}
-                    </section>
-                </aside>
-            </main>
+                                <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">
+                                        Direct expenses
+                                    </dt>
+                                    <dd>
+                                        {money(profitability.directExpenses)}
+                                    </dd>
+                                </div>
+                                <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">
+                                        Tracked hours
+                                    </dt>
+                                    <dd>
+                                        {Math.round(
+                                            profitability.trackedMinutes / 60,
+                                        )}
+                                        h
+                                    </dd>
+                                </div>
+                                <div className="flex justify-between border-t pt-3 font-semibold">
+                                    <dt>Estimated margin</dt>
+                                    <dd className="text-primary">
+                                        {money(profitability.margin)}
+                                    </dd>
+                                </div>
+                            </dl>
+                        </section>
+                        <section className="lumink-panel overflow-hidden">
+                            <div className="flex items-center gap-2 border-b px-4 py-3">
+                                <CalendarDays className="size-4" />
+                                <h2 className="font-semibold">
+                                    Active content
+                                </h2>
+                            </div>
+                            {business.content_items.slice(0, 6).map((item) => (
+                                <Link
+                                    key={item.id}
+                                    href={`/content/${item.id}`}
+                                    className="flex items-center justify-between gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-muted/50"
+                                >
+                                    <div>
+                                        <p className="text-sm font-medium">
+                                            {item.title}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {dateTime(item.publish_at)}
+                                        </p>
+                                    </div>
+                                    <StatusBadge value={item.stage} />
+                                </Link>
+                            ))}
+                        </section>
+                    </aside>
+                </main>
             )}
 
             {activeTab === 'Content' && (
@@ -395,24 +415,50 @@ export default function BusinessShow({
                                 {business.content_items.map((item) => (
                                     <tr key={item.id}>
                                         <td>
-                                            <p className="font-medium">{item.title}</p>
-                                            <p className="text-xs text-muted-foreground">{humanize(item.type)}</p>
+                                            <p className="font-medium">
+                                                {item.title}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {humanize(item.type)}
+                                            </p>
                                         </td>
-                                        <td>{business.campaigns.find(c => item.title.includes(c.name))?.name ?? '—'}</td>
-                                        <td>{item.owner?.name ?? 'Unassigned'}</td>
-                                        <td>{dateTime(item.publish_at)}</td>
-                                        <td><StatusBadge value={item.stage} /></td>
                                         <td>
-                                            <Button asChild variant="ghost" size="sm">
-                                                <Link href={`/content/${item.id}`}>
-                                                    Open <ArrowRight data-icon="inline-end" />
+                                            {business.campaigns.find((c) =>
+                                                item.title.includes(c.name),
+                                            )?.name ?? '—'}
+                                        </td>
+                                        <td>
+                                            {item.owner?.name ?? 'Unassigned'}
+                                        </td>
+                                        <td>{dateTime(item.publish_at)}</td>
+                                        <td>
+                                            <StatusBadge value={item.stage} />
+                                        </td>
+                                        <td>
+                                            <Button
+                                                asChild
+                                                variant="ghost"
+                                                size="sm"
+                                            >
+                                                <Link
+                                                    href={`/content/${item.id}`}
+                                                >
+                                                    Open{' '}
+                                                    <ArrowRight data-icon="inline-end" />
                                                 </Link>
                                             </Button>
                                         </td>
                                     </tr>
                                 ))}
                                 {business.content_items.length === 0 && (
-                                    <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">No content items yet.</td></tr>
+                                    <tr>
+                                        <td
+                                            colSpan={6}
+                                            className="py-8 text-center text-muted-foreground"
+                                        >
+                                            No content items yet.
+                                        </td>
+                                    </tr>
                                 )}
                             </tbody>
                         </table>
@@ -438,13 +484,26 @@ export default function BusinessShow({
                                     <tr key={task.id}>
                                         <td>{dateTime(task.due_at)}</td>
                                         <td>{humanize(task.type)}</td>
-                                        <td className="font-medium">{task.title}</td>
-                                        <td>{task.owner?.name ?? 'Unassigned'}</td>
-                                        <td><StatusBadge value={task.status} /></td>
+                                        <td className="font-medium">
+                                            {task.title}
+                                        </td>
+                                        <td>
+                                            {task.owner?.name ?? 'Unassigned'}
+                                        </td>
+                                        <td>
+                                            <StatusBadge value={task.status} />
+                                        </td>
                                     </tr>
                                 ))}
                                 {business.tasks.length === 0 && (
-                                    <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No tasks yet.</td></tr>
+                                    <tr>
+                                        <td
+                                            colSpan={5}
+                                            className="py-8 text-center text-muted-foreground"
+                                        >
+                                            No tasks yet.
+                                        </td>
+                                    </tr>
                                 )}
                             </tbody>
                         </table>
@@ -452,11 +511,18 @@ export default function BusinessShow({
                 </main>
             )}
 
-            {['Calendar', 'Files', 'Performance', 'Finance'].includes(activeTab) && (
+            {['Calendar', 'Files', 'Performance', 'Finance'].includes(
+                activeTab,
+            ) && (
                 <main className="p-5">
                     <section className="lumink-panel p-8 text-center text-muted-foreground">
-                        <h2 className="text-lg font-medium text-foreground">{activeTab}</h2>
-                        <p className="mt-2">The {activeTab.toLowerCase()} view will be available in an upcoming update.</p>
+                        <h2 className="text-lg font-medium text-foreground">
+                            {activeTab}
+                        </h2>
+                        <p className="mt-2">
+                            The {activeTab.toLowerCase()} view will be available
+                            in an upcoming update.
+                        </p>
                     </section>
                 </main>
             )}

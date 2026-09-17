@@ -12,11 +12,13 @@ class FinanceController extends Controller
 {
     public function __invoke(): Response
     {
+        $periodStart = now()->startOfMonth();
+        $periodEnd = now()->endOfMonth();
         $invoices = Invoice::with(['business:id,name,slug', 'lines', 'payments'])
             ->latest('issue_date')
             ->get()
             ->each(function (Invoice $invoice) {
-                $invoice->append(['paid_amount', 'balance']);
+                $invoice->append(['paid_amount', 'balance', 'effective_status']);
             });
 
         $expenses = Expense::with('business:id,name')
@@ -24,14 +26,22 @@ class FinanceController extends Controller
             ->get();
 
         $businesses = Business::with([
-            'expenses' => fn ($query) => $query->whereBetween('spent_on', [now()->startOfMonth(), now()->endOfMonth()]),
+            'expenses' => fn ($query) => $query
+                ->where('allocation_type', 'direct')
+                ->whereBetween('spent_on', [$periodStart, $periodEnd]),
             'tasks',
         ])->where('status', 'active')->get();
 
         $revenue = (float) $businesses->sum('monthly_retainer');
-        $payments = (float) $invoices->flatMap->payments->sum('amount');
-        $directCosts = (float) $expenses->where('allocation_type', 'direct')->sum('amount');
-        $overhead = (float) $expenses->where('allocation_type', 'overhead')->sum('amount');
+        $payments = (float) $invoices->flatMap->payments
+            ->whereBetween('paid_on', [$periodStart, $periodEnd])
+            ->sum('amount');
+        $directCosts = (float) Expense::where('allocation_type', 'direct')
+            ->whereBetween('spent_on', [$periodStart, $periodEnd])
+            ->sum('amount');
+        $overhead = (float) Expense::where('allocation_type', 'overhead')
+            ->whereBetween('spent_on', [$periodStart, $periodEnd])
+            ->sum('amount');
 
         return Inertia::render('finance/index', [
             'invoices' => $invoices,

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\AuditEvent;
 use App\Models\Business;
 use App\Models\ContentItem;
+use App\Models\User;
+use App\Notifications\ContentStageChanged;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,19 +14,29 @@ use Inertia\Response;
 
 class ContentController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        abort_unless($request->user()->can('viewAny', ContentItem::class), 403);
+
         return Inertia::render('content/index', [
             'content' => ContentItem::with(['business:id,name,slug', 'owner:id,name,avatar', 'campaign:id,name'])
+                ->when(! $request->user()->canManageOperations(), fn ($query) => $query
+                    ->where(fn ($query) => $query
+                        ->where('owner_id', $request->user()->id)
+                        ->orWhereHas('tasks', fn ($query) => $query->where('owner_id', $request->user()->id))))
                 ->orderBy('publish_at')
                 ->get(),
             'stages' => ContentItem::STAGES,
-            'businesses' => Business::orderBy('name')->get(['id', 'name']),
+            'businesses' => $request->user()->canManageOperations()
+                ? Business::orderBy('name')->get(['id', 'name'])
+                : [],
         ]);
     }
 
-    public function show(ContentItem $contentItem): Response
+    public function show(Request $request, ContentItem $contentItem): Response
     {
+        abort_unless($request->user()->can('view', $contentItem), 403);
+
         $contentItem->load([
             'business:id,name,slug,drive_folder_url',
             'campaign:id,name',
@@ -39,12 +51,16 @@ class ContentController extends Controller
         return Inertia::render('content/show', [
             'content' => $contentItem,
             'stages' => ContentItem::STAGES,
-            'users' => \App\Models\User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'users' => $request->user()->canManageOperations()
+                ? User::where('is_active', true)->orderBy('name')->get(['id', 'name'])
+                : [],
         ]);
     }
 
     public function update(Request $request, ContentItem $contentItem): RedirectResponse
     {
+        abort_unless($request->user()->can('update', $contentItem), 403);
+
         $data = $request->validate([
             'stage' => ['sometimes', 'in:'.implode(',', ContentItem::STAGES)],
             'brief' => ['sometimes', 'nullable', 'string'],
@@ -75,7 +91,7 @@ class ContentController extends Controller
 
             if ($contentItem->owner_id && $contentItem->owner_id !== $request->user()->id) {
                 if ($contentItem->owner) {
-                    $contentItem->owner->notify(new \App\Notifications\ContentStageChanged($contentItem, $data['stage'], $request->user()->name));
+                    $contentItem->owner->notify(new ContentStageChanged($contentItem, $data['stage'], $request->user()->name));
                 }
             }
         }
@@ -85,6 +101,8 @@ class ContentController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        abort_unless($request->user()->can('create', ContentItem::class), 403);
+
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'in:reel,story,static,carousel,other'],

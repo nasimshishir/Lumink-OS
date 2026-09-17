@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/** @property int $id */
 class Campaign extends Model
 {
     protected $guarded = [];
@@ -20,11 +21,13 @@ class Campaign extends Model
         ];
     }
 
+    /** @return BelongsTo<Business, $this> */
     public function business(): BelongsTo
     {
         return $this->belongsTo(Business::class);
     }
 
+    /** @return HasMany<ContentItem, $this> */
     public function contentItems(): HasMany
     {
         return $this->hasMany(ContentItem::class);

@@ -11,6 +11,7 @@ use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TaskController;
 use App\Models\Business;
@@ -36,19 +37,12 @@ Route::get('/demo-login', function () {
 Route::get('/approve/{token}', [ApprovalController::class, 'show'])->name('approvals.show');
 Route::post('/approve/{token}', [ApprovalController::class, 'respond'])->name('approvals.respond');
 
-Route::get('/clear-db-temp', function () {
-    \Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--seed' => true]);
-    return 'Database cleared and seeded successfully!';
-});
-
 Route::middleware('auth')->group(function () {
     Route::get('/today', DashboardController::class)->name('today');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
-    Route::post('/notifications/{id}/read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.read');
-    Route::post('/notifications/read-all', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.read_all');
-    Route::get('/dev/migrate', [App\Http\Controllers\NotificationController::class, 'devMigrate'])->name('dev.migrate');
-
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read_all');
     Route::get('/my-work', fn () => Inertia::render('work/index', [
         'tasks' => Task::with(['business:id,name,slug', 'contentItem:id,title'])
             ->where('owner_id', request()->user()->id)
@@ -65,12 +59,17 @@ Route::middleware('auth')->group(function () {
     Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
     Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::get('/calendar', fn () => Inertia::render('calendar/index', [
-        'tasks' => Task::with('business:id,name')->whereNotNull('due_at')->orderBy('due_at')->get(),
+        'tasks' => Task::with('business:id,name')
+            ->when(! request()->user()->canManageOperations(), fn ($query) => $query->where('owner_id', request()->user()->id))
+            ->whereNotNull('due_at')
+            ->orderBy('due_at')
+            ->get(),
     ]))->name('calendar.index');
 
     Route::middleware('owner')->group(function () {
         Route::get('/finance', FinanceController::class)->name('finance.index');
         Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+        Route::post('/invoices/{invoice}/payments', [PaymentController::class, 'store'])->name('invoice-payments.store');
         Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
         Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');

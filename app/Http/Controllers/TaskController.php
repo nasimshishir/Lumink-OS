@@ -4,13 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditEvent;
 use App\Models\Task;
+use App\Notifications\TaskAssigned;
+use App\Notifications\TaskStatusChanged;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class TaskController extends Controller
 {
     public function store(Request $request): RedirectResponse
     {
+        abort_unless($request->user()->can('create', Task::class), 403);
+
         try {
             $data = $request->validate([
                 'title' => ['required', 'string', 'max:180'],
@@ -23,7 +28,7 @@ class TaskController extends Controller
                 'estimate_minutes' => ['nullable', 'integer', 'min:0'],
                 'description' => ['nullable', 'string'],
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             \Log::error('Task creation validation failed', $e->errors());
             throw $e;
         }
@@ -35,7 +40,7 @@ class TaskController extends Controller
         ]);
 
         if ($task->owner_id && $task->owner_id !== $request->user()->id) {
-            $task->owner->notify(new \App\Notifications\TaskAssigned($task, $request->user()->name));
+            $task->owner->notify(new TaskAssigned($task, $request->user()->name));
         }
 
         AuditEvent::create([
@@ -51,7 +56,7 @@ class TaskController extends Controller
 
     public function update(Request $request, Task $task): RedirectResponse
     {
-        abort_unless($request->user()->canManageOperations() || $task->owner_id === $request->user()->id, 403);
+        abort_unless($request->user()->can('update', $task), 403);
 
         $data = $request->validate([
             'status' => ['sometimes', 'in:todo,in_progress,blocked,review,done'],
@@ -67,7 +72,7 @@ class TaskController extends Controller
 
         if (isset($data['owner_id']) && $data['owner_id'] !== $oldOwnerId && $data['owner_id'] !== $request->user()->id) {
             if ($task->owner) {
-                $task->owner->notify(new \App\Notifications\TaskAssigned($task, $request->user()->name));
+                $task->owner->notify(new TaskAssigned($task, $request->user()->name));
             }
         }
 
@@ -80,7 +85,7 @@ class TaskController extends Controller
                 $usersToNotify->push($task->creator);
             }
             $usersToNotify->filter()->unique('id')->each(function ($user) use ($task, $request) {
-                $user->notify(new \App\Notifications\TaskStatusChanged($task, $task->status, $request->user()->name));
+                $user->notify(new TaskStatusChanged($task, $task->status, $request->user()->name));
             });
         }
 

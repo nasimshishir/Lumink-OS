@@ -12,7 +12,7 @@ class ExpenseController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'business_id' => ['nullable', 'exists:businesses,id'],
+            'business_id' => ['nullable', 'required_if:allocation_type,direct', 'exists:businesses,id'],
             'allocation_type' => ['required', 'in:direct,overhead'],
             'category' => ['required', 'in:shoots,transport,equipment,props,subscriptions,freelancers,administration'],
             'description' => ['required', 'string', 'max:180'],

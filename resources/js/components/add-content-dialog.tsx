@@ -64,7 +64,8 @@ export function AddContentDialog({
                     <DialogHeader>
                         <DialogTitle>Add content</DialogTitle>
                         <DialogDescription>
-                            Create a new piece of content to plan, produce, and approve.
+                            Create a new piece of content to plan, produce, and
+                            approve.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex flex-col gap-2">
@@ -119,23 +120,38 @@ export function AddContentDialog({
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
-                                        <SelectItem value="reel">Reel</SelectItem>
-                                        <SelectItem value="story">Story</SelectItem>
-                                        <SelectItem value="static">Static Image</SelectItem>
-                                        <SelectItem value="carousel">Carousel</SelectItem>
-                                        <SelectItem value="other">Other</SelectItem>
+                                        <SelectItem value="reel">
+                                            Reel
+                                        </SelectItem>
+                                        <SelectItem value="story">
+                                            Story
+                                        </SelectItem>
+                                        <SelectItem value="static">
+                                            Static Image
+                                        </SelectItem>
+                                        <SelectItem value="carousel">
+                                            Carousel
+                                        </SelectItem>
+                                        <SelectItem value="other">
+                                            Other
+                                        </SelectItem>
                                     </SelectGroup>
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="col-span-full flex flex-col gap-2">
-                            <Label htmlFor="content-publish">Publish date</Label>
+                            <Label htmlFor="content-publish">
+                                Publish date
+                            </Label>
                             <Input
                                 id="content-publish"
                                 type="datetime-local"
                                 value={form.data.publish_at}
                                 onChange={(event) =>
-                                    form.setData('publish_at', event.target.value)
+                                    form.setData(
+                                        'publish_at',
+                                        event.target.value,
+                                    )
                                 }
                             />
                         </div>

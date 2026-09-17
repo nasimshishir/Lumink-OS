@@ -96,85 +96,111 @@ export default function ApprovalShow({ approval }: { approval: Approval }) {
                         </div>
                     </section>
                     <section className="lumink-panel h-fit bg-white p-5">
-                        <h2 className="text-lg font-semibold">Your decision</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            Enter your name so Lumink can record who reviewed
-                            this version.
-                        </p>
-                        <form
-                            onSubmit={submit}
-                            className="mt-5 flex flex-col gap-5"
-                        >
-                            <div className="flex flex-col gap-2">
-                                <Label htmlFor="client-name">Your name</Label>
-                                <Input
-                                    id="client-name"
-                                    required
-                                    value={form.data.client_name}
-                                    onChange={(event) =>
-                                        form.setData(
-                                            'client_name',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <Button
-                                    type="button"
-                                    variant={
-                                        form.data.action === 'approved'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() =>
-                                        form.setData('action', 'approved')
-                                    }
+                        {approval.status === 'pending' ? (
+                            <>
+                                <h2 className="text-lg font-semibold">
+                                    Your decision
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Enter your name so Lumink can record who
+                                    reviewed this version.
+                                </p>
+                                <form
+                                    onSubmit={submit}
+                                    className="mt-5 flex flex-col gap-5"
                                 >
-                                    <CheckCircle2 data-icon="inline-start" />
-                                    Approve
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant={
-                                        form.data.action === 'changes_requested'
-                                            ? 'destructive'
-                                            : 'outline'
-                                    }
-                                    onClick={() =>
-                                        form.setData(
-                                            'action',
-                                            'changes_requested',
-                                        )
-                                    }
-                                >
-                                    <MessageSquareText data-icon="inline-start" />
-                                    Request changes
-                                </Button>
+                                    <div className="flex flex-col gap-2">
+                                        <Label htmlFor="client-name">
+                                            Your name
+                                        </Label>
+                                        <Input
+                                            id="client-name"
+                                            required
+                                            value={form.data.client_name}
+                                            onChange={(event) =>
+                                                form.setData(
+                                                    'client_name',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <Button
+                                            type="button"
+                                            variant={
+                                                form.data.action === 'approved'
+                                                    ? 'default'
+                                                    : 'outline'
+                                            }
+                                            onClick={() =>
+                                                form.setData(
+                                                    'action',
+                                                    'approved',
+                                                )
+                                            }
+                                        >
+                                            <CheckCircle2 data-icon="inline-start" />
+                                            Approve
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant={
+                                                form.data.action ===
+                                                'changes_requested'
+                                                    ? 'destructive'
+                                                    : 'outline'
+                                            }
+                                            onClick={() =>
+                                                form.setData(
+                                                    'action',
+                                                    'changes_requested',
+                                                )
+                                            }
+                                        >
+                                            <MessageSquareText data-icon="inline-start" />
+                                            Request changes
+                                        </Button>
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <Label htmlFor="client-comment">
+                                            Comment
+                                        </Label>
+                                        <textarea
+                                            id="client-comment"
+                                            className="min-h-32 rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                                            value={form.data.comment}
+                                            onChange={(event) =>
+                                                form.setData(
+                                                    'comment',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            placeholder="What should Lumink know?"
+                                        />
+                                    </div>
+                                    <Button
+                                        type="submit"
+                                        size="lg"
+                                        disabled={form.processing}
+                                    >
+                                        Submit response
+                                    </Button>
+                                </form>
+                            </>
+                        ) : (
+                            <div className="flex flex-col items-center gap-3 py-8 text-center">
+                                <CheckCircle2 className="size-10 text-primary" />
+                                <h2 className="text-lg font-semibold">
+                                    Response recorded
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    This approval request has already been
+                                    completed.
+                                </p>
+                                <StatusBadge value={approval.status} />
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <Label htmlFor="client-comment">Comment</Label>
-                                <textarea
-                                    id="client-comment"
-                                    className="min-h-32 rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-                                    value={form.data.comment}
-                                    onChange={(event) =>
-                                        form.setData(
-                                            'comment',
-                                            event.target.value,
-                                        )
-                                    }
-                                    placeholder="What should Lumink know?"
-                                />
-                            </div>
-                            <Button
-                                type="submit"
-                                size="lg"
-                                disabled={form.processing}
-                            >
-                                Submit response
-                            </Button>
-                        </form>
+                        )}
                     </section>
                 </main>
             </div>
