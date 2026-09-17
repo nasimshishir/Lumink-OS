@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Business;
 use App\Models\Expense;
 use App\Models\Invoice;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -85,6 +86,42 @@ class FinanceIntegrityTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('profitability.directExpenses', 2000)
                 ->where('profitability.margin', 23000));
+    }
+
+    public function test_business_profitability_includes_completed_task_hours(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $business = $this->business();
+        Task::create([
+            'business_id' => $business->id,
+            'title' => 'Completed client work',
+            'status' => 'done',
+            'actual_minutes' => 120,
+        ]);
+
+        $this->actingAs($owner)
+            ->get("/businesses/{$business->id}")
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('profitability.trackedMinutes', 120));
+    }
+
+    public function test_partially_paid_invoice_is_overdue_when_its_balance_is_past_due(): void
+    {
+        $invoice = Invoice::create([
+            'business_id' => $this->business()->id,
+            'number' => 'INV-TEST-OVERDUE',
+            'status' => 'sent',
+            'issue_date' => today()->subWeek(),
+            'due_date' => today()->subDay(),
+            'subtotal' => 1000,
+            'total' => 1000,
+        ]);
+        $invoice->payments()->create([
+            'amount' => 400,
+            'paid_on' => today(),
+        ]);
+
+        $this->assertSame('overdue', $invoice->fresh()->effective_status);
     }
 
     public function test_direct_expense_requires_a_business(): void

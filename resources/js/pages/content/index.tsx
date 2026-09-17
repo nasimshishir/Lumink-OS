@@ -97,10 +97,10 @@ export default function ContentIndex({
                 <section
                     className="grid gap-3 overflow-x-auto pb-2"
                     style={{
-                        gridTemplateColumns: `repeat(${Math.min(stages.length, 6)}, minmax(240px, 1fr))`,
+                        gridTemplateColumns: `repeat(${stages.length}, minmax(240px, 1fr))`,
                     }}
                 >
-                    {stages.slice(0, 6).map((stage) => {
+                    {stages.map((stage) => {
                         const items = filteredContent.filter(
                             (item) => item.stage === stage,
                         );

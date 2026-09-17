@@ -60,7 +60,7 @@ class BusinessController extends Controller
                 ->whereBetween('spent_on', [now()->startOfMonth(), now()->endOfMonth()]),
         ]);
 
-        $trackedMinutes = $business->tasks->sum('actual_minutes');
+        $trackedMinutes = $business->tasks()->sum('actual_minutes');
         $directExpenses = (float) $business->expenses->sum('amount');
 
         return Inertia::render('businesses/show', [

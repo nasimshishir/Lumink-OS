@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Notifications\ContentStageChanged;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -78,7 +80,40 @@ class ContentController extends Controller
         }
 
         $oldStage = $contentItem->stage;
-        $contentItem->update($data);
+        $creativeFields = ['brief', 'hook', 'script', 'cta', 'target_audience', 'featured_items', 'shoot_notes'];
+        $hasCreativeChanges = collect($creativeFields)->contains(
+            fn (string $field): bool => array_key_exists($field, $data),
+        );
+        $requestedStage = $data['stage'] ?? $oldStage;
+
+        if ($hasCreativeChanges && in_array($oldStage, ['scheduled', 'published'], true) && $requestedStage !== 'editing') {
+            throw ValidationException::withMessages([
+                'stage' => 'Move this content back to editing before changing approved creative details.',
+            ]);
+        }
+
+        if ($hasCreativeChanges && in_array($oldStage, ['client_review', 'approved'], true)) {
+            $data['stage'] = 'editing';
+            $requestedStage = 'editing';
+        }
+
+        $startsNewRevision = in_array($oldStage, ['client_review', 'approved', 'scheduled', 'published'], true)
+            && $requestedStage === 'editing';
+
+        $contentItem = DB::transaction(function () use ($contentItem, $data, $startsNewRevision): ContentItem {
+            if ($startsNewRevision) {
+                $contentItem->approvals()
+                    ->whereNull('responded_at')
+                    ->whereNull('revoked_at')
+                    ->update(['revoked_at' => now()]);
+
+                $data['revision_number'] = $contentItem->revision_number + 1;
+            }
+
+            $contentItem->update($data);
+
+            return $contentItem;
+        });
 
         if (isset($data['stage']) && $data['stage'] !== $oldStage) {
             AuditEvent::create([

@@ -20,13 +20,22 @@ class ApprovalController extends Controller
     {
         abort_unless($request->user()->canManageOperations(), 403);
 
-        $approval = ApprovalRequest::create([
-            'content_item_id' => $contentItem->id,
-            'created_by' => $request->user()->id,
-            'token' => Str::random(48),
-            'version' => $contentItem->revision_number,
-            'expires_at' => now()->addDays(4),
-        ]);
+        $approval = DB::transaction(function () use ($request, $contentItem): ApprovalRequest {
+            $contentItem->approvals()
+                ->whereNull('responded_at')
+                ->whereNull('revoked_at')
+                ->update(['revoked_at' => now()]);
+
+            $contentItem->update(['stage' => 'client_review']);
+
+            return ApprovalRequest::create([
+                'content_item_id' => $contentItem->id,
+                'created_by' => $request->user()->id,
+                'token' => Str::random(48),
+                'version' => $contentItem->revision_number,
+                'expires_at' => now()->addDays(4),
+            ]);
+        });
 
         return back()->with('approval_url', route('approvals.show', $approval->token));
     }

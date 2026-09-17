@@ -74,11 +74,11 @@ class Invoice extends Model
             return 'paid';
         }
 
-        if ($this->paid_amount > 0) {
-            return 'partial';
+        if ($this->due_date->isPast()) {
+            return 'overdue';
         }
 
-        return $this->due_date->isPast() ? 'overdue' : 'sent';
+        return $this->paid_amount > 0 ? 'partial' : 'sent';
     }
 
     public function syncPaymentStatus(): void
