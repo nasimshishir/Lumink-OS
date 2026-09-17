@@ -204,9 +204,9 @@ export default function Team({
                 description="Owner, manager, and specialist access."
                 actions={<InviteDialog />}
             />
-            <main className="p-5 flex flex-col gap-6">
+            <main className="flex flex-col gap-6 p-5">
                 <section className="lumink-panel overflow-hidden">
-                    <div className="border-b px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center justify-between border-b px-4 py-3">
                         <h2 className="text-sm font-semibold">Team members</h2>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span>{activeCount} active</span>
@@ -231,13 +231,14 @@ export default function Team({
                         </thead>
                         <tbody>
                             {users.map((user) => {
-                                const isSelf = user.id === auth.user.id;
+                                const isSelf = user.id === auth?.user?.id;
+
                                 return (
                                     <tr
                                         key={user.id}
                                         className={
                                             !user.is_active
-                                                ? 'opacity-65 bg-muted/20'
+                                                ? 'bg-muted/20 opacity-65'
                                                 : ''
                                         }
                                     >
@@ -257,7 +258,7 @@ export default function Team({
                                                             {user.name}
                                                         </p>
                                                         {isSelf && (
-                                                            <span className="rounded bg-primary/10 px-1.5 py-0.2 text-[10px] font-semibold text-primary">
+                                                            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
                                                                 You
                                                             </span>
                                                         )}
@@ -320,8 +321,8 @@ export default function Team({
                                                     }
                                                     className={
                                                         user.is_active
-                                                            ? 'text-muted-foreground hover:text-destructive hover:border-destructive'
-                                                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                                            ? 'text-muted-foreground hover:border-destructive hover:text-destructive'
+                                                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
                                                     }
                                                     title={
                                                         user.is_active
@@ -331,12 +332,12 @@ export default function Team({
                                                 >
                                                     {user.is_active ? (
                                                         <>
-                                                            <UserX className="size-3.5 mr-1" />
+                                                            <UserX className="mr-1 size-3.5" />
                                                             Deactivate
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <UserCheck className="size-3.5 mr-1" />
+                                                            <UserCheck className="mr-1 size-3.5" />
                                                             Reactivate
                                                         </>
                                                     )}
@@ -353,7 +354,9 @@ export default function Team({
                 <section className="flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-sm font-semibold">Pending invitations</h2>
+                            <h2 className="text-sm font-semibold">
+                                Pending invitations
+                            </h2>
                             <p className="text-xs text-muted-foreground">
                                 Google accounts authorized to join your agency.
                             </p>
@@ -388,12 +391,19 @@ export default function Team({
                                                 </div>
                                             </td>
                                             <td>
-                                                <StatusBadge value={invitation.role} />
+                                                <StatusBadge
+                                                    value={invitation.role}
+                                                />
                                             </td>
                                             <td>
-                                                {invitation.inviter?.name ?? 'Owner'}
+                                                {invitation.inviter?.name ??
+                                                    'Owner'}
                                             </td>
-                                            <td>{shortDate(invitation.created_at)}</td>
+                                            <td>
+                                                {shortDate(
+                                                    invitation.created_at,
+                                                )}
+                                            </td>
                                             <td>
                                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
                                                     <Clock className="size-3" />
@@ -406,19 +416,26 @@ export default function Team({
                                                         variant="outline"
                                                         size="sm"
                                                         onClick={() =>
-                                                            copySignInLink(invitation.id)
+                                                            copySignInLink(
+                                                                invitation.id,
+                                                            )
                                                         }
                                                         title="Copy Google sign-in link"
                                                     >
-                                                        {copiedId === invitation.id ? (
+                                                        {copiedId ===
+                                                        invitation.id ? (
                                                             <>
                                                                 <Check className="size-3.5 text-emerald-600" />
-                                                                <span className="text-emerald-600">Copied</span>
+                                                                <span className="text-emerald-600">
+                                                                    Copied
+                                                                </span>
                                                             </>
                                                         ) : (
                                                             <>
                                                                 <Copy className="size-3.5" />
-                                                                <span>Copy link</span>
+                                                                <span>
+                                                                    Copy link
+                                                                </span>
                                                             </>
                                                         )}
                                                     </Button>
@@ -426,7 +443,9 @@ export default function Team({
                                                         variant="outline"
                                                         size="sm"
                                                         onClick={() =>
-                                                            resendInvitation(invitation.id)
+                                                            resendInvitation(
+                                                                invitation.id,
+                                                            )
                                                         }
                                                         title="Resend invitation"
                                                     >
@@ -438,7 +457,9 @@ export default function Team({
                                                         size="sm"
                                                         className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                         onClick={() =>
-                                                            revokeInvitation(invitation)
+                                                            revokeInvitation(
+                                                                invitation,
+                                                            )
                                                         }
                                                         title="Revoke invitation"
                                                     >
@@ -454,9 +475,12 @@ export default function Team({
                         ) : (
                             <div className="flex flex-col items-center justify-center p-8 text-center">
                                 <Mail className="size-8 text-muted-foreground/50" />
-                                <p className="mt-2 text-sm font-medium">No pending invitations</p>
+                                <p className="mt-2 text-sm font-medium">
+                                    No pending invitations
+                                </p>
                                 <p className="text-xs text-muted-foreground">
-                                    All invited accounts have signed in or no invites are outstanding.
+                                    All invited accounts have signed in or no
+                                    invites are outstanding.
                                 </p>
                             </div>
                         )}
