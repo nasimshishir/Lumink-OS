@@ -16,6 +16,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TaskController;
 use App\Models\Business;
 use App\Models\DriveConnection;
+use App\Models\Invitation;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -77,8 +78,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/reports/{performancePeriod}/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');
         Route::get('/team', fn () => Inertia::render('team/index', [
             'users' => User::orderBy('name')->get(),
+            'invitations' => Invitation::with('inviter:id,name')
+                ->whereNull('accepted_at')
+                ->latest()
+                ->get(),
         ]))->name('team.index');
         Route::post('/invitations', [InvitationController::class, 'store'])->name('invitations.store');
+        Route::post('/invitations/{invitation}/resend', [InvitationController::class, 'resend'])->name('invitations.resend');
+        Route::delete('/invitations/{invitation}', [InvitationController::class, 'destroy'])->name('invitations.destroy');
         Route::get('/settings/integrations', fn () => Inertia::render('settings/integrations', [
             'driveConnection' => DriveConnection::where('user_id', request()->user()->id)->first(),
             'businesses' => Business::orderBy('name')->get(['id', 'name', 'drive_folder_url']),

@@ -2,12 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Mail\TeamInvitationMail;
 use App\Models\ApprovalRequest;
 use App\Models\Business;
 use App\Models\ContentItem;
+use App\Models\Invitation;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class AgencyOperationsTest extends TestCase
@@ -80,16 +85,114 @@ class AgencyOperationsTest extends TestCase
 
     public function test_owner_can_invite_a_google_account_with_a_role(): void
     {
+        \Illuminate\Support\Facades\Mail::fake();
+
         $owner = User::factory()->create(['role' => 'owner']);
 
         $this->actingAs($owner)->post('/invitations', [
             'email' => 'editor@example.com',
             'role' => 'specialist',
-        ])->assertRedirect();
+        ])->assertSessionHas('success', 'Access authorized and invitation email sent.')
+          ->assertRedirect();
 
         $this->assertDatabaseHas('invitations', [
             'email' => 'editor@example.com',
             'role' => 'specialist',
         ]);
+
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\TeamInvitationMail::class, function ($mail) {
+            return $mail->hasTo('editor@example.com') && $mail->invitation->role === 'specialist';
+        });
+    }
+
+    public function test_invitation_creation_survives_mail_transport_failure(): void
+    {
+        \Illuminate\Support\Facades\Mail::shouldReceive('to')->andThrow(new \Exception('Mail gun broke'));
+        \Illuminate\Support\Facades\Log::shouldReceive('error')->once();
+
+        $owner = User::factory()->create(['role' => 'owner']);
+
+        $this->actingAs($owner)->post('/invitations', [
+            'email' => 'broken@example.com',
+            'role' => 'manager',
+        ])->assertSessionHas('error', 'Access authorized, but we could not send the invitation email. Please notify them manually.')
+          ->assertRedirect();
+
+        $this->assertDatabaseHas('invitations', [
+            'email' => 'broken@example.com',
+            'role' => 'manager',
+        ]);
+    }
+
+    public function test_owner_can_view_pending_invitations_on_team_page(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        Invitation::create([
+            'email' => 'pending@example.com',
+            'role' => 'specialist',
+            'invited_by' => $owner->id,
+            'accepted_at' => null,
+        ]);
+
+        $this->actingAs($owner)
+            ->get('/team')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('team/index')
+                ->has('invitations', 1)
+                ->where('invitations.0.email', 'pending@example.com')
+            );
+    }
+
+    public function test_owner_can_revoke_a_pending_invitation(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $invitation = Invitation::create([
+            'email' => 'revoke@example.com',
+            'role' => 'specialist',
+            'invited_by' => $owner->id,
+            'accepted_at' => null,
+        ]);
+
+        $this->actingAs($owner)
+            ->delete("/invitations/{$invitation->id}")
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Invitation for revoke@example.com has been revoked.');
+
+        $this->assertDatabaseMissing('invitations', ['id' => $invitation->id]);
+        $this->assertDatabaseHas('audit_events', [
+            'user_id' => $owner->id,
+            'event' => 'invitation.revoked',
+            'auditable_id' => $invitation->id,
+        ]);
+    }
+
+    public function test_owner_can_resend_an_invitation(): void
+    {
+        Mail::fake();
+
+        $owner = User::factory()->create(['role' => 'owner']);
+        $invitation = Invitation::create([
+            'email' => 'resend@example.com',
+            'role' => 'manager',
+            'invited_by' => $owner->id,
+            'accepted_at' => null,
+        ]);
+
+        $this->actingAs($owner)
+            ->post("/invitations/{$invitation->id}/resend")
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Invitation resent to resend@example.com.');
+
+        Mail::assertSent(TeamInvitationMail::class, function ($mail) {
+            return $mail->hasTo('resend@example.com');
+        });
+
+        $this->assertDatabaseHas('audit_events', [
+            'user_id' => $owner->id,
+            'event' => 'invitation.resent',
+            'auditable_id' => $invitation->id,
+        ]);
     }
 }
+
