@@ -14,6 +14,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TeamMemberController;
 use App\Models\Business;
 use App\Models\DriveConnection;
 use App\Models\Invitation;
@@ -77,12 +78,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');
         Route::get('/reports/{performancePeriod}/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');
         Route::get('/team', fn () => Inertia::render('team/index', [
-            'users' => User::orderBy('name')->get(),
+            'users' => User::orderByDesc('is_active')->orderBy('name')->get(),
             'invitations' => Invitation::with('inviter:id,name')
                 ->whereNull('accepted_at')
                 ->latest()
                 ->get(),
         ]))->name('team.index');
+        Route::patch('/team/{user}/toggle-status', [TeamMemberController::class, 'toggleStatus'])->name('team.toggle-status');
         Route::post('/invitations', [InvitationController::class, 'store'])->name('invitations.store');
         Route::post('/invitations/{invitation}/resend', [InvitationController::class, 'resend'])->name('invitations.resend');
         Route::delete('/invitations/{invitation}', [InvitationController::class, 'destroy'])->name('invitations.destroy');

@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import {
     Check,
     Clock,
@@ -6,7 +6,9 @@ import {
     Mail,
     RotateCw,
     Trash2,
+    UserCheck,
     UserPlus,
+    UserX,
 } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
@@ -138,7 +140,9 @@ export default function Team({
     users: User[];
     invitations?: Invitation[];
 }) {
+    const { auth } = usePage<{ auth: { user: User } }>().props;
     const [copiedId, setCopiedId] = useState<number | null>(null);
+    const [togglingId, setTogglingId] = useState<number | null>(null);
 
     function copySignInLink(invitationId: number) {
         const loginUrl = `${window.location.origin}/auth/google`;
@@ -167,6 +171,31 @@ export default function Team({
         }
     }
 
+    function toggleMemberStatus(member: User) {
+        if (member.id === auth.user.id) {
+            return;
+        }
+
+        const message = member.is_active
+            ? `Are you sure you want to deactivate ${member.name}? They will be immediately logged out and blocked from signing in.`
+            : `Are you sure you want to reactivate ${member.name}? They will be authorized to sign in again.`;
+
+        if (confirm(message)) {
+            setTogglingId(member.id);
+            router.patch(
+                `/team/${member.id}/toggle-status`,
+                {},
+                {
+                    preserveScroll: true,
+                    onFinish: () => setTogglingId(null),
+                },
+            );
+        }
+    }
+
+    const activeCount = users.filter((u) => u.is_active).length;
+    const deactivatedCount = users.length - activeCount;
+
     return (
         <>
             <Head title="Team" />
@@ -178,54 +207,145 @@ export default function Team({
             <main className="p-5 flex flex-col gap-6">
                 <section className="lumink-panel overflow-hidden">
                     <div className="border-b px-4 py-3 flex items-center justify-between">
-                        <h2 className="text-sm font-semibold">Active team members</h2>
-                        <span className="text-xs text-muted-foreground">{users.length} members</span>
+                        <h2 className="text-sm font-semibold">Team members</h2>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{activeCount} active</span>
+                            {deactivatedCount > 0 && (
+                                <>
+                                    <span>•</span>
+                                    <span>{deactivatedCount} deactivated</span>
+                                </>
+                            )}
+                        </div>
                     </div>
                     <table className="lumink-table">
                         <thead>
                             <tr>
                                 <th>Member</th>
                                 <th>Role</th>
+                                <th>Status</th>
                                 <th>Access</th>
                                 <th>Joined</th>
+                                <th className="text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {users.map((user) => (
-                                <tr key={user.id}>
-                                    <td>
-                                        <div className="flex items-center gap-3">
-                                            <Avatar>
-                                                <AvatarImage
-                                                    src={user.avatar}
-                                                />
-                                                <AvatarFallback>
-                                                    {user.name.slice(0, 2)}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <div>
-                                                <p className="font-medium">
-                                                    {user.name}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {user.email}
-                                                </p>
+                            {users.map((user) => {
+                                const isSelf = user.id === auth.user.id;
+                                return (
+                                    <tr
+                                        key={user.id}
+                                        className={
+                                            !user.is_active
+                                                ? 'opacity-65 bg-muted/20'
+                                                : ''
+                                        }
+                                    >
+                                        <td>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar>
+                                                    <AvatarImage
+                                                        src={user.avatar}
+                                                    />
+                                                    <AvatarFallback>
+                                                        {user.name.slice(0, 2)}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-medium">
+                                                            {user.name}
+                                                        </p>
+                                                        {isSelf && (
+                                                            <span className="rounded bg-primary/10 px-1.5 py-0.2 text-[10px] font-semibold text-primary">
+                                                                You
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {user.email}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <StatusBadge value={user.role} />
-                                    </td>
-                                    <td>
-                                        {user.role === 'owner'
-                                            ? 'All operations and finance'
-                                            : user.role === 'manager'
-                                              ? 'Operations, clients, and delivery'
-                                              : 'Assigned work and assets'}
-                                    </td>
-                                    <td>{shortDate(user.created_at)}</td>
-                                </tr>
-                            ))}
+                                        </td>
+                                        <td>
+                                            <StatusBadge value={user.role} />
+                                        </td>
+                                        <td>
+                                            <span
+                                                className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                    user.is_active
+                                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                                        : 'bg-destructive/10 text-destructive'
+                                                }`}
+                                            >
+                                                <span
+                                                    className={`h-1.5 w-1.5 rounded-full ${
+                                                        user.is_active
+                                                            ? 'bg-emerald-500'
+                                                            : 'bg-destructive'
+                                                    }`}
+                                                />
+                                                {user.is_active
+                                                    ? 'Active'
+                                                    : 'Deactivated'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {user.role === 'owner'
+                                                ? 'All operations and finance'
+                                                : user.role === 'manager'
+                                                  ? 'Operations, clients, and delivery'
+                                                  : 'Assigned work and assets'}
+                                        </td>
+                                        <td>{shortDate(user.created_at)}</td>
+                                        <td className="text-right">
+                                            {isSelf ? (
+                                                <span className="text-xs text-muted-foreground italic">
+                                                    Current user
+                                                </span>
+                                            ) : (
+                                                <Button
+                                                    variant={
+                                                        user.is_active
+                                                            ? 'outline'
+                                                            : 'default'
+                                                    }
+                                                    size="sm"
+                                                    disabled={
+                                                        togglingId === user.id
+                                                    }
+                                                    onClick={() =>
+                                                        toggleMemberStatus(user)
+                                                    }
+                                                    className={
+                                                        user.is_active
+                                                            ? 'text-muted-foreground hover:text-destructive hover:border-destructive'
+                                                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                                    }
+                                                    title={
+                                                        user.is_active
+                                                            ? 'Deactivate team member'
+                                                            : 'Reactivate team member'
+                                                    }
+                                                >
+                                                    {user.is_active ? (
+                                                        <>
+                                                            <UserX className="size-3.5 mr-1" />
+                                                            Deactivate
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <UserCheck className="size-3.5 mr-1" />
+                                                            Reactivate
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </section>

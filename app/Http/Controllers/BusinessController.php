@@ -65,7 +65,7 @@ class BusinessController extends Controller
 
         return Inertia::render('businesses/show', [
             'business' => $business,
-            'users' => User::orderBy('name')->get(['id', 'name']),
+            'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'profitability' => [
                 'directExpenses' => $directExpenses,
                 'trackedMinutes' => $trackedMinutes,

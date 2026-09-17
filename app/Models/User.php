@@ -38,6 +38,11 @@ class User extends Authenticatable implements PasskeyUser
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
+    protected $attributes = [
+        'is_active' => true,
+        'role' => 'specialist',
+    ];
+
     /**
      * Get the attributes that should be cast.
      *

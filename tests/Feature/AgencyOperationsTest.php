@@ -194,5 +194,107 @@ class AgencyOperationsTest extends TestCase
             'auditable_id' => $invitation->id,
         ]);
     }
+
+    public function test_owner_can_deactivate_and_reactivate_a_team_member(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $member = User::factory()->create(['role' => 'specialist', 'is_active' => true]);
+
+        $this->actingAs($owner)
+            ->patch("/team/{$member->id}/toggle-status")
+            ->assertRedirect()
+            ->assertSessionHas('success', "{$member->name} has been deactivated.");
+
+        $this->assertFalse($member->fresh()->is_active);
+        $this->assertDatabaseHas('audit_events', [
+            'user_id' => $owner->id,
+            'event' => 'team_member.deactivated',
+            'auditable_id' => $member->id,
+        ]);
+
+        $this->actingAs($owner)
+            ->patch("/team/{$member->id}/toggle-status")
+            ->assertRedirect()
+            ->assertSessionHas('success', "{$member->name} has been reactivated.");
+
+        $this->assertTrue($member->fresh()->is_active);
+        $this->assertDatabaseHas('audit_events', [
+            'user_id' => $owner->id,
+            'event' => 'team_member.activated',
+            'auditable_id' => $member->id,
+        ]);
+    }
+
+    public function test_deactivated_team_member_is_logged_out_by_ensure_active_middleware(): void
+    {
+        $member = User::factory()->create(['role' => 'specialist', 'is_active' => false]);
+
+        $this->actingAs($member)
+            ->get('/dashboard')
+            ->assertRedirect('/login')
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
+
+    public function test_owner_cannot_deactivate_themselves(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+
+        $this->actingAs($owner)
+            ->patch("/team/{$owner->id}/toggle-status")
+            ->assertForbidden();
+
+        $this->assertTrue($owner->fresh()->is_active);
+    }
+
+    public function test_owner_cannot_deactivate_last_remaining_active_owner(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner', 'is_active' => true]);
+        $secondOwner = User::factory()->create(['role' => 'owner', 'is_active' => false]);
+
+        $this->actingAs($owner);
+
+        // Deactivating a different owner when only 1 active owner remains
+        $activeOwner2 = User::factory()->create(['role' => 'owner', 'is_active' => true]);
+
+        // There are 2 active owners: $owner and $activeOwner2. Deactivating $activeOwner2 succeeds.
+        $this->patch("/team/{$activeOwner2->id}/toggle-status")->assertRedirect();
+        $this->assertFalse($activeOwner2->fresh()->is_active);
+
+        // Now only $owner is active. If someone attempts to deactivate $owner (or if another owner attempted to),
+        // let's test that an active owner can't be deactivated if they are the sole active owner.
+        // Acting as a manager/another user should be blocked by owner middleware, but let's test the controller logic:
+        $anotherAdmin = User::factory()->create(['role' => 'owner', 'is_active' => true]);
+        // Now deactivating $anotherAdmin leaves $owner as the last one.
+        $this->patch("/team/{$anotherAdmin->id}/toggle-status")->assertRedirect();
+        $this->assertFalse($anotherAdmin->fresh()->is_active);
+
+        // Attempting to deactivate $owner via toggleStatus directly or if $anotherAdmin was logged in:
+        $this->actingAs($anotherAdmin)
+            ->patch("/team/{$owner->id}/toggle-status")
+            ->assertStatus(422);
+    }
+
+    public function test_deactivated_users_are_excluded_from_business_assignee_list(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $activeMember = User::factory()->create(['name' => 'Active Alice', 'is_active' => true]);
+        $deactivatedMember = User::factory()->create(['name' => 'Inactive Bob', 'is_active' => false]);
+        $business = Business::create([
+            'name' => 'Acme Corp',
+            'slug' => 'acme-corp',
+            'monthly_retainer' => 5000,
+        ]);
+
+        $this->actingAs($owner)
+            ->get("/businesses/{$business->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('businesses/show')
+                ->has('users', 2) // $owner and $activeMember
+                ->where('users.0.name', 'Active Alice')
+            );
+    }
 }
 
