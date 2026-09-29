@@ -1,0 +1,92 @@
+name: deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to cPanel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Composer Dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Install NPM Dependencies & Build Assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup SSH Key & Known Hosts
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CPANEL_SSH_KEY }}
+          SSH_HOST: ${{ secrets.CPANEL_HOST }}
+          SSH_PORT: ${{ secrets.CPANEL_PORT || '22' }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync Files to cPanel (Rsync)
+        env:
+          SSH_HOST: ${{ secrets.CPANEL_HOST }}
+          SSH_PORT: ${{ secrets.CPANEL_PORT || '22' }}
+          SSH_USER: ${{ secrets.CPANEL_USER }}
+          TARGET_DIR: ${{ secrets.CPANEL_TARGET_DIR }}
+        run: |
+          rsync -avz --delete \
+            -e "ssh -p $SSH_PORT" \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='node_modules/' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='public/.htaccess' \
+            --exclude='tests/' \
+            --exclude='storage/app/public/*' \
+            --exclude='storage/framework/cache/*' \
+            --exclude='storage/framework/sessions/*' \
+            --exclude='storage/framework/views/*' \
+            --exclude='storage/logs/*' \
+            ./ "$SSH_USER@$SSH_HOST:$TARGET_DIR/"
+
+      - name: Run Post-Deployment Commands on cPanel
+        env:
+          SSH_HOST: ${{ secrets.CPANEL_HOST }}
+          SSH_PORT: ${{ secrets.CPANEL_PORT || '22' }}
+          SSH_USER: ${{ secrets.CPANEL_USER }}
+          TARGET_DIR: ${{ secrets.CPANEL_TARGET_DIR }}
+          PHP_BIN: ${{ secrets.CPANEL_PHP_BIN || 'php' }}
+        run: |
+          ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "
+            set -e
+            cd $TARGET_DIR
+            $PHP_BIN artisan migrate --force
+            $PHP_BIN artisan storage:link || true
+            $PHP_BIN artisan optimize:clear
+            $PHP_BIN artisan optimize
+            $PHP_BIN artisan queue:restart || true
+          "
