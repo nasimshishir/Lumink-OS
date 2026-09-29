@@ -50,28 +50,26 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
-      - name: Sync Files to cPanel (Rsync)
+      - name: Deploy Files to cPanel (Tar over SSH)
         env:
           SSH_HOST: ${{ secrets.CPANEL_HOST }}
           SSH_PORT: ${{ secrets.CPANEL_PORT || '22' }}
           SSH_USER: ${{ secrets.CPANEL_USER }}
           TARGET_DIR: ${{ secrets.CPANEL_TARGET_DIR }}
         run: |
-          rsync -avz --delete \
-            -e "ssh -p $SSH_PORT" \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='node_modules/' \
-            --exclude='.env' \
-            --exclude='.env.*' \
-            --exclude='public/.htaccess' \
-            --exclude='tests/' \
-            --exclude='storage/app/public/*' \
-            --exclude='storage/framework/cache/*' \
-            --exclude='storage/framework/sessions/*' \
-            --exclude='storage/framework/views/*' \
-            --exclude='storage/logs/*' \
-            ./ "$SSH_USER@$SSH_HOST:$TARGET_DIR/"
+          tar --exclude='.git' \
+              --exclude='.github' \
+              --exclude='node_modules' \
+              --exclude='.env' \
+              --exclude='.env.*' \
+              --exclude='public/.htaccess' \
+              --exclude='tests' \
+              --exclude='storage/app/public/*' \
+              --exclude='storage/framework/cache/*' \
+              --exclude='storage/framework/sessions/*' \
+              --exclude='storage/framework/views/*' \
+              --exclude='storage/logs/*' \
+              -czf - . | ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "tar -xzf - -C $TARGET_DIR"
 
       - name: Run Post-Deployment Commands on cPanel
         env:
