@@ -10,6 +10,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (empty(config('permission.table_names')) && file_exists(config_path('permission.php'))) {
+            $config = require config_path('permission.php');
+            config(['permission' => $config]);
+        }
+
         // Reset cached roles and permissions
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 

@@ -11,8 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $teams = config('permission.teams');
         $tableNames = config('permission.table_names');
+
+        if (empty($tableNames) && file_exists(config_path('permission.php'))) {
+            $config = require config_path('permission.php');
+            config(['permission' => $config]);
+            $tableNames = config('permission.table_names');
+        }
+
+        $teams = config('permission.teams');
         $columnNames = config('permission.column_names');
         $pivotRole = $columnNames['role_pivot_key'] ?? 'role_id';
         $pivotPermission = $columnNames['permission_pivot_key'] ?? 'permission_id';

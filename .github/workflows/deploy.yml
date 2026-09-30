@@ -82,9 +82,9 @@ jobs:
           ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "
             set -e
             cd $TARGET_DIR
+            $PHP_BIN artisan optimize:clear
             $PHP_BIN artisan migrate --force
             $PHP_BIN artisan storage:link || true
-            $PHP_BIN artisan optimize:clear
             $PHP_BIN artisan optimize
             $PHP_BIN artisan queue:restart || true
           "
