@@ -277,11 +277,12 @@ class AgentApiTest extends TestCase
     {
         $owner = User::factory()->create(['role' => 'owner']);
 
-        // Generate token
+        // Generate token with string '90' as sent by web form
         $response = $this->actingAs($owner)
             ->from('/settings/integrations')
             ->post('/settings/api-tokens', [
                 'name' => 'Autonomous Marketing Bot',
+                'expires_in_days' => '90',
             ]);
 
         $response->assertRedirect('/settings/integrations');
@@ -292,6 +293,7 @@ class AgentApiTest extends TestCase
         $this->assertNotNull($newApiToken);
         $plainTextToken = $newApiToken['token'];
         $this->assertStringContainsString('|', $plainTextToken);
+        $this->assertNotNull($newApiToken['expires_at']);
 
         $this->assertDatabaseCount('personal_access_tokens', 1);
         $tokenRecord = $owner->tokens()->first();
@@ -304,6 +306,20 @@ class AgentApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('user.email', $owner->email);
+
+        // Also test token generation with '0' (never expires)
+        $noExpiryResponse = $this->actingAs($owner)
+            ->from('/settings/integrations')
+            ->post('/settings/api-tokens', [
+                'name' => 'Never Expiring Agent',
+                'expires_in_days' => '0',
+            ]);
+
+        $noExpiryResponse->assertRedirect('/settings/integrations');
+        $noExpiryResponse->assertSessionHas('newApiToken');
+        /** @var array{name: string, token: string, expires_at: ?string} $noExpiryToken */
+        $noExpiryToken = session('newApiToken');
+        $this->assertNull($noExpiryToken['expires_at']);
     }
 
     public function test_web_settings_can_revoke_api_tokens(): void
@@ -462,4 +478,3 @@ class AgentApiTest extends TestCase
             ->assertJsonPath('data.content_item.referenced_shoots.0.drive_folder_url', 'https://drive.google.com/drive/folders/shoots-archive-grill-sizzle');
     }
 }
-

@@ -19,11 +19,12 @@ class ApiTokenController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'abilities' => ['nullable', 'array'],
-            'expires_in_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
+            'expires_in_days' => ['nullable', 'integer', 'min:0', 'max:3650'],
         ]);
 
         $abilities = $data['abilities'] ?? ['*'];
-        $expiresAt = ! empty($data['expires_in_days']) ? now()->addDays($data['expires_in_days']) : null;
+        $days = ! empty($data['expires_in_days']) ? (int) $data['expires_in_days'] : 0;
+        $expiresAt = $days > 0 ? now()->addDays($days) : null;
 
         $token = $user->createToken($data['name'], $abilities, $expiresAt);
 
