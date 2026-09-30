@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import {
     Check,
     Clipboard,
+    Edit2,
     ExternalLink,
     Link2,
     Play,
@@ -10,7 +11,10 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { AddTaskDialog } from '@/components/add-task-dialog';
+import { DeleteContentDialog } from '@/components/delete-content-dialog';
+import { DeleteTaskDialog } from '@/components/delete-task-dialog';
 import { EditContentDetailsDialog } from '@/components/edit-content-details-dialog';
+import { EditTaskDialog } from '@/components/edit-task-dialog';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { dateTime, humanize } from '@/lib/format';
@@ -26,11 +30,15 @@ type PlatformVersion = {
 type Task = {
     id: number;
     title: string;
+    description?: string | null;
     status: string;
-    due_at?: string;
+    type?: string;
+    priority?: string;
+    due_at?: string | null;
     estimate_minutes: number;
     actual_minutes: number;
-    owner?: { name: string };
+    owner_id?: number | null;
+    owner?: { id?: number; name: string } | null;
 };
 type Approval = {
     id: number;
@@ -72,11 +80,15 @@ type Content = {
 export default function ContentShow({
     content,
     stages,
-    users,
+    users = [],
+    canManage = false,
+    isOwner = false,
 }: {
     content: Content;
     stages: string[];
-    users: { id: number; name: string; avatar?: string }[];
+    users?: { id: number; name: string; avatar?: string }[];
+    canManage?: boolean;
+    isOwner?: boolean;
 }) {
     const [platform, setPlatform] = useState(
         content.platform_versions[0]?.platform ?? 'instagram',
@@ -166,6 +178,16 @@ export default function ContentShow({
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                        <EditContentDetailsDialog
+                            content={content}
+                            users={users}
+                            trigger={
+                                <Button variant="outline">
+                                    <Edit2 data-icon="inline-start" />
+                                    Edit content
+                                </Button>
+                            }
+                        />
                         <Button variant="outline" onClick={createApproval}>
                             <Link2 data-icon="inline-start" />
                             Send approval link
@@ -174,6 +196,12 @@ export default function ContentShow({
                             <Check data-icon="inline-start" />
                             Mark approved
                         </Button>
+                        {(canManage || isOwner) && (
+                            <DeleteContentDialog
+                                contentId={content.id}
+                                contentTitle={content.title}
+                            />
+                        )}
                     </div>
                 </div>
                 <div className="mt-6 flex overflow-x-auto pb-1">
@@ -206,7 +234,10 @@ export default function ContentShow({
                     <section className="lumink-panel overflow-hidden">
                         <div className="flex items-center justify-between border-b px-4 py-3">
                             <h2 className="font-semibold">Brief & details</h2>
-                            <EditContentDetailsDialog content={content} />
+                            <EditContentDetailsDialog
+                                content={content}
+                                users={users}
+                            />
                         </div>
                         <div className="grid md:grid-cols-[minmax(0,1fr)_280px]">
                             <div className="flex flex-col gap-5 p-4">
@@ -293,6 +324,7 @@ export default function ContentShow({
                                     <th>Status</th>
                                     <th>Due</th>
                                     <th>Time</th>
+                                    <th className="text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -318,8 +350,51 @@ export default function ContentShow({
                                             )}
                                             h
                                         </td>
+                                        <td className="text-right">
+                                            <div className="flex items-center justify-end gap-1.5">
+                                                <EditTaskDialog
+                                                    task={{
+                                                        ...task,
+                                                        type:
+                                                            task.type ??
+                                                            'general',
+                                                        priority:
+                                                            task.priority ??
+                                                            'medium',
+                                                        business_id:
+                                                            content.business.id,
+                                                    }}
+                                                    businesses={[
+                                                        {
+                                                            id: content.business
+                                                                .id,
+                                                            name: content
+                                                                .business.name,
+                                                        },
+                                                    ]}
+                                                    users={users}
+                                                />
+                                                {(canManage || isOwner) && (
+                                                    <DeleteTaskDialog
+                                                        taskId={task.id}
+                                                        taskTitle={task.title}
+                                                    />
+                                                )}
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))}
+                                {content.tasks.length === 0 && (
+                                    <tr>
+                                        <td
+                                            colSpan={6}
+                                            className="py-6 text-center text-sm text-muted-foreground"
+                                        >
+                                            No tasks assigned for this content
+                                            item.
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                         <div className="grid grid-cols-3 border-t bg-muted/30 px-4 py-3 text-sm">

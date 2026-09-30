@@ -3,13 +3,14 @@ import {
     AlertCircle,
     CalendarClock,
     CheckCircle2,
-    ChevronRight,
     CircleDollarSign,
     Clock3,
     FileWarning,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { AddTaskDialog } from '@/components/add-task-dialog';
+import { DeleteTaskDialog } from '@/components/delete-task-dialog';
+import { EditTaskDialog } from '@/components/edit-task-dialog';
 import { PageHeading } from '@/components/page-heading';
 import { StatusBadge } from '@/components/status-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,16 +18,21 @@ import { Button } from '@/components/ui/button';
 import { dateTime, humanize, money } from '@/lib/format';
 
 type Person = { id: number; name: string; avatar?: string };
-type Business = { id: number; name: string; slug: string };
+type Business = { id: number; name: string; slug?: string };
 type Task = {
     id: number;
     title: string;
+    description?: string | null;
     type: string;
     status: string;
     priority: string;
-    due_at?: string;
-    business?: Business;
-    owner?: Person;
+    due_at?: string | null;
+    estimate_minutes?: number | null;
+    actual_minutes?: number | null;
+    business_id?: number | null;
+    business?: Business | null;
+    owner_id?: number | null;
+    owner?: Person | null;
 };
 type Content = {
     id: number;
@@ -46,6 +52,8 @@ export default function Today({
     businesses,
     users,
     canCreateTasks,
+    canManage = false,
+    isOwner = false,
 }: {
     tasks: Task[];
     summary: {
@@ -66,6 +74,8 @@ export default function Today({
     businesses: Person[];
     users: Person[];
     canCreateTasks: boolean;
+    canManage?: boolean;
+    isOwner?: boolean;
 }) {
     const markDone = (task: Task) =>
         router.patch(
@@ -224,16 +234,36 @@ export default function Today({
                                                     />
                                                 </div>
                                             </td>
-                                            <td>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        markDone(task)
-                                                    }
-                                                >
-                                                    Mark done
-                                                </Button>
+                                            <td className="text-right">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-8 px-2.5 text-xs"
+                                                        onClick={() =>
+                                                            markDone(task)
+                                                        }
+                                                    >
+                                                        Mark done
+                                                    </Button>
+                                                    {(canManage || isOwner) && (
+                                                        <>
+                                                            <EditTaskDialog
+                                                                task={task}
+                                                                businesses={
+                                                                    businesses
+                                                                }
+                                                                users={users}
+                                                            />
+                                                            <DeleteTaskDialog
+                                                                taskId={task.id}
+                                                                taskTitle={
+                                                                    task.title
+                                                                }
+                                                            />
+                                                        </>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -268,13 +298,19 @@ export default function Today({
                                             {task.title}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
-                                            {task.business?.name}
+                                            {task.business?.name ?? 'Agency'}
                                         </p>
                                     </div>
                                     <StatusBadge value={task.status} />
-                                    <Button variant="ghost" size="icon">
-                                        <ChevronRight />
-                                    </Button>
+                                    <div className="flex items-center justify-end gap-1">
+                                        {(canManage || isOwner) && (
+                                            <EditTaskDialog
+                                                task={task}
+                                                businesses={businesses}
+                                                users={users}
+                                            />
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                     </section>

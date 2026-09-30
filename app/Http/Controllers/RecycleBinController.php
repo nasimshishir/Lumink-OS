@@ -10,6 +10,7 @@ use App\Models\Invoice;
 use App\Models\Task;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -81,15 +82,55 @@ class RecycleBinController extends Controller
         $model = $this->resolveTrashedModel($type, $id);
         $label = $this->getModelLabel($model);
 
-        $model->restore();
+        DB::transaction(function () use ($model, $type, $id, $request, $label) {
+            $model->restore();
 
-        AuditEvent::create([
-            'user_id' => $request->user()->id,
-            'event' => "{$type}.restored",
-            'auditable_type' => get_class($model),
-            'auditable_id' => $model->id,
-            'metadata' => ['label' => $label, 'type' => $type],
-        ]);
+            if ($type === 'business' || $type === 'businesses') {
+                $lastTrashedEvent = AuditEvent::where('auditable_type', Business::class)
+                    ->where('auditable_id', $id)
+                    ->where('event', 'business.trashed')
+                    ->latest()
+                    ->first();
+
+                $metadata = $lastTrashedEvent?->metadata ?? [];
+                $taskIds = $metadata['cascaded_tasks'] ?? null;
+                $contentIds = $metadata['cascaded_content'] ?? null;
+                $invoiceIds = $metadata['cascaded_invoices'] ?? null;
+                $expenseIds = $metadata['cascaded_expenses'] ?? null;
+
+                if (is_array($taskIds) && ! empty($taskIds)) {
+                    Task::onlyTrashed()->whereIn('id', $taskIds)->restore();
+                } else {
+                    Task::onlyTrashed()->where('business_id', $id)->restore();
+                }
+
+                if (is_array($contentIds) && ! empty($contentIds)) {
+                    ContentItem::onlyTrashed()->whereIn('id', $contentIds)->restore();
+                } else {
+                    ContentItem::onlyTrashed()->where('business_id', $id)->restore();
+                }
+
+                if (is_array($invoiceIds) && ! empty($invoiceIds)) {
+                    Invoice::onlyTrashed()->whereIn('id', $invoiceIds)->restore();
+                } else {
+                    Invoice::onlyTrashed()->where('business_id', $id)->restore();
+                }
+
+                if (is_array($expenseIds) && ! empty($expenseIds)) {
+                    Expense::onlyTrashed()->whereIn('id', $expenseIds)->restore();
+                } else {
+                    Expense::onlyTrashed()->where('business_id', $id)->restore();
+                }
+            }
+
+            AuditEvent::create([
+                'user_id' => $request->user()->id,
+                'event' => "{$type}.restored",
+                'auditable_type' => get_class($model),
+                'auditable_id' => $model->id,
+                'metadata' => ['label' => $label, 'type' => $type],
+            ]);
+        });
 
         return back()->with('success', "{$label} has been restored from the Recycle Bin.");
     }
@@ -106,15 +147,27 @@ class RecycleBinController extends Controller
         $targetId = $model->id;
         $class = get_class($model);
 
-        $model->forceDelete();
+        DB::transaction(function () use ($model, $type, $targetId, $class, $request, $label) {
+            if ($type === 'business' || $type === 'businesses') {
+                /** @var Business $business */
+                $business = $model;
+                $business->tasks()->withTrashed()->forceDelete();
+                $business->contentItems()->withTrashed()->forceDelete();
+                $business->invoices()->withTrashed()->forceDelete();
+                $business->expenses()->withTrashed()->forceDelete();
+                $business->shootSessions()->delete();
+            }
 
-        AuditEvent::create([
-            'user_id' => $request->user()->id,
-            'event' => "{$type}.force_deleted",
-            'auditable_type' => $class,
-            'auditable_id' => $targetId,
-            'metadata' => ['label' => $label, 'type' => $type],
-        ]);
+            $model->forceDelete();
+
+            AuditEvent::create([
+                'user_id' => $request->user()->id,
+                'event' => "{$type}.force_deleted",
+                'auditable_type' => $class,
+                'auditable_id' => $targetId,
+                'metadata' => ['label' => $label, 'type' => $type],
+            ]);
+        });
 
         return back()->with('success', "{$label} has been permanently deleted.");
     }
@@ -126,15 +179,30 @@ class RecycleBinController extends Controller
             403
         );
 
-        $count = match ($type) {
-            'business', 'businesses' => Business::onlyTrashed()->restore(),
-            'task', 'tasks' => Task::onlyTrashed()->restore(),
-            'content' => ContentItem::onlyTrashed()->restore(),
-            'finance' => Invoice::onlyTrashed()->restore() + Expense::onlyTrashed()->restore(),
-            'invoice', 'invoices' => Invoice::onlyTrashed()->restore(),
-            'expense', 'expenses' => Expense::onlyTrashed()->restore(),
-            default => abort(400, "Invalid type {$type}"),
-        };
+        $count = DB::transaction(function () use ($type) {
+            if ($type === 'business' || $type === 'businesses') {
+                $businesses = Business::onlyTrashed()->get();
+                $c = $businesses->count();
+                foreach ($businesses as $b) {
+                    $b->restore();
+                    Task::onlyTrashed()->where('business_id', $b->id)->restore();
+                    ContentItem::onlyTrashed()->where('business_id', $b->id)->restore();
+                    Invoice::onlyTrashed()->where('business_id', $b->id)->restore();
+                    Expense::onlyTrashed()->where('business_id', $b->id)->restore();
+                }
+
+                return $c;
+            }
+
+            return match ($type) {
+                'task', 'tasks' => Task::onlyTrashed()->restore(),
+                'content' => ContentItem::onlyTrashed()->restore(),
+                'finance' => Invoice::onlyTrashed()->restore() + Expense::onlyTrashed()->restore(),
+                'invoice', 'invoices' => Invoice::onlyTrashed()->restore(),
+                'expense', 'expenses' => Expense::onlyTrashed()->restore(),
+                default => abort(400, "Invalid type {$type}"),
+            };
+        });
 
         AuditEvent::create([
             'user_id' => $request->user()->id,
@@ -157,35 +225,44 @@ class RecycleBinController extends Controller
         $type = $request->input('type', 'all');
         $count = 0;
 
-        if ($type === 'businesses' || $type === 'business' || $type === 'all') {
-            $items = Business::onlyTrashed()->get();
-            $count += $items->count();
-            $items->each->forceDelete();
-        }
+        DB::transaction(function () use ($type, &$count) {
+            if ($type === 'businesses' || $type === 'business' || $type === 'all') {
+                $items = Business::onlyTrashed()->get();
+                $count += $items->count();
+                foreach ($items as $business) {
+                    $business->tasks()->withTrashed()->forceDelete();
+                    $business->contentItems()->withTrashed()->forceDelete();
+                    $business->invoices()->withTrashed()->forceDelete();
+                    $business->expenses()->withTrashed()->forceDelete();
+                    $business->shootSessions()->delete();
+                    $business->forceDelete();
+                }
+            }
 
-        if ($type === 'tasks' || $type === 'task' || $type === 'all') {
-            $items = Task::onlyTrashed()->get();
-            $count += $items->count();
-            $items->each->forceDelete();
-        }
+            if ($type === 'tasks' || $type === 'task' || $type === 'all') {
+                $items = Task::onlyTrashed()->get();
+                $count += $items->count();
+                $items->each->forceDelete();
+            }
 
-        if ($type === 'content' || $type === 'all') {
-            $items = ContentItem::onlyTrashed()->get();
-            $count += $items->count();
-            $items->each->forceDelete();
-        }
+            if ($type === 'content' || $type === 'all') {
+                $items = ContentItem::onlyTrashed()->get();
+                $count += $items->count();
+                $items->each->forceDelete();
+            }
 
-        if ($type === 'finance' || $type === 'all' || $type === 'invoices' || $type === 'invoice') {
-            $items = Invoice::onlyTrashed()->get();
-            $count += $items->count();
-            $items->each->forceDelete();
-        }
+            if ($type === 'finance' || $type === 'all' || $type === 'invoices' || $type === 'invoice') {
+                $items = Invoice::onlyTrashed()->get();
+                $count += $items->count();
+                $items->each->forceDelete();
+            }
 
-        if ($type === 'finance' || $type === 'all' || $type === 'expenses' || $type === 'expense') {
-            $items = Expense::onlyTrashed()->get();
-            $count += $items->count();
-            $items->each->forceDelete();
-        }
+            if ($type === 'finance' || $type === 'all' || $type === 'expenses' || $type === 'expense') {
+                $items = Expense::onlyTrashed()->get();
+                $count += $items->count();
+                $items->each->forceDelete();
+            }
+        });
 
         AuditEvent::create([
             'user_id' => $request->user()->id,

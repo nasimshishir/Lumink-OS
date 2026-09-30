@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { DeleteTaskDialog } from '@/components/delete-task-dialog';
+import { EditTaskDialog } from '@/components/edit-task-dialog';
 import { PageHeading } from '@/components/page-heading';
 import { StatusBadge } from '@/components/status-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -80,10 +82,12 @@ interface CalendarProps {
     events: CalendarEvent[];
     businesses: BusinessItem[];
     teamMembers: TeamMember[];
+    users?: { id: number; name: string }[];
     calendarFeedUrl: string;
     webcalFeedUrl: string;
     calendarToken: string;
     isManager: boolean;
+    isOwner?: boolean;
 }
 
 type ViewMode = 'month' | 'week' | 'agenda';
@@ -94,9 +98,11 @@ export default function Calendar({
     events = [],
     businesses = [],
     teamMembers = [],
+    users = [],
     calendarFeedUrl,
     webcalFeedUrl,
     isManager,
+    isOwner = false,
 }: CalendarProps) {
     const [currentDate, setCurrentDate] = useState<Date>(new Date());
     const [viewMode, setViewMode] = useState<ViewMode>('month');
@@ -1093,7 +1099,7 @@ export default function Calendar({
                                     )}
                                 </div>
 
-                                <DialogFooter className="flex items-center justify-between sm:justify-between">
+                                <DialogFooter className="flex flex-wrap items-center justify-between gap-2 sm:justify-between">
                                     <Button
                                         variant="ghost"
                                         size="sm"
@@ -1101,14 +1107,57 @@ export default function Calendar({
                                     >
                                         Close
                                     </Button>
-                                    {activeEvent.url && (
-                                        <Button size="sm" asChild>
-                                            <Link href={activeEvent.url}>
-                                                <span>Open Record</span>
-                                                <ExternalLink className="size-3.5" />
-                                            </Link>
-                                        </Button>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                        {activeEvent.event_type === 'task' &&
+                                            (isManager || isOwner) && (
+                                                <>
+                                                    <EditTaskDialog
+                                                        task={{
+                                                            id: activeEvent.raw_id,
+                                                            title: activeEvent.title,
+                                                            description:
+                                                                activeEvent.description,
+                                                            type:
+                                                                activeEvent.sub_type ??
+                                                                'general',
+                                                            status: activeEvent.status,
+                                                            priority:
+                                                                activeEvent.priority ??
+                                                                'medium',
+                                                            due_at: activeEvent.date,
+                                                            business_id:
+                                                                activeEvent
+                                                                    .business
+                                                                    ?.id,
+                                                            owner_id:
+                                                                activeEvent
+                                                                    .owner?.id,
+                                                        }}
+                                                        businesses={businesses}
+                                                        users={users}
+                                                    />
+                                                    <DeleteTaskDialog
+                                                        taskId={
+                                                            activeEvent.raw_id
+                                                        }
+                                                        taskTitle={
+                                                            activeEvent.title
+                                                        }
+                                                        onDeleted={() =>
+                                                            setActiveEvent(null)
+                                                        }
+                                                    />
+                                                </>
+                                            )}
+                                        {activeEvent.url && (
+                                            <Button size="sm" asChild>
+                                                <Link href={activeEvent.url}>
+                                                    <span>Open Record</span>
+                                                    <ExternalLink className="size-3.5" />
+                                                </Link>
+                                            </Button>
+                                        )}
+                                    </div>
                                 </DialogFooter>
                             </>
                         )}

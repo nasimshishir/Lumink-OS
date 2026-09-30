@@ -31,6 +31,7 @@ class CalendarController extends Controller
         $webcalUrl = preg_replace('/^https?:\/\//i', 'webcal://', $feedUrl) ?? $feedUrl;
 
         $tasks = Task::with('business:id,name')
+            ->where(fn ($query) => $query->whereNull('business_id')->orWhereHas('business'))
             ->when(! $user->canManageOperations(), fn ($query) => $query->where('owner_id', $user->id))
             ->whereNotNull('due_at')
             ->orderBy('due_at')
@@ -41,10 +42,12 @@ class CalendarController extends Controller
             'tasks' => $tasks,
             'businesses' => $businesses,
             'teamMembers' => $teamMembers,
+            'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'calendarFeedUrl' => $feedUrl,
             'webcalFeedUrl' => $webcalUrl,
             'calendarToken' => $token,
             'isManager' => $user->canManageOperations(),
+            'isOwner' => $user->isOwner(),
         ]);
     }
 
@@ -95,6 +98,7 @@ class CalendarController extends Controller
 
         // 1. Scheduled Tasks
         $tasks = Task::with(['business:id,name', 'owner:id,name,avatar'])
+            ->where(fn ($q) => $q->whereNull('business_id')->orWhereHas('business'))
             ->when(! $canManage, fn ($q) => $q->where('owner_id', $user->id))
             ->whereNotNull('due_at')
             ->orderBy('due_at')
@@ -131,6 +135,7 @@ class CalendarController extends Controller
 
         // 2. Scheduled Content Deliverables
         $contentItems = ContentItem::with(['business:id,name', 'owner:id,name,avatar'])
+            ->whereHas('business')
             ->when(! $canManage, fn ($q) => $q->where('owner_id', $user->id))
             ->whereNotNull('publish_at')
             ->orderBy('publish_at')
@@ -164,6 +169,7 @@ class CalendarController extends Controller
 
         // 3. Shoot Sessions
         $shoots = ShootSession::with(['business:id,name', 'owner:id,name,avatar'])
+            ->whereHas('business')
             ->when(! $canManage, fn ($q) => $q->where('owner_id', $user->id))
             ->whereNotNull('starts_at')
             ->orderBy('starts_at')

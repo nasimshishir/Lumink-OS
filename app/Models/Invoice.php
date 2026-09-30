@@ -43,7 +43,7 @@ class Invoice extends Model
     /** @return BelongsTo<Business, $this> */
     public function business(): BelongsTo
     {
-        return $this->belongsTo(Business::class);
+        return $this->belongsTo(Business::class)->withTrashed();
     }
 
     /** @return HasMany<InvoiceLine, $this> */

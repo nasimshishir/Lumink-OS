@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, Search } from 'lucide-react';
 import { useState } from 'react';
 import { AddContentDialog } from '@/components/add-content-dialog';
+import { DeleteContentDialog } from '@/components/delete-content-dialog';
 import { PageHeading } from '@/components/page-heading';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -32,10 +33,14 @@ export default function ContentIndex({
     content,
     stages,
     businesses,
+    canManage = false,
+    isOwner = false,
 }: {
     content: Content[];
     stages: string[];
     businesses: { id: number; name: string }[];
+    canManage?: boolean;
+    isOwner?: boolean;
 }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterBusiness, setFilterBusiness] = useState('all');
@@ -183,17 +188,28 @@ export default function ContentIndex({
                                     <td>
                                         <StatusBadge value={item.stage} />
                                     </td>
-                                    <td>
-                                        <Button
-                                            asChild
-                                            variant="ghost"
-                                            size="sm"
-                                        >
-                                            <Link href={`/content/${item.id}`}>
-                                                Open
-                                                <ArrowRight data-icon="inline-end" />
-                                            </Link>
-                                        </Button>
+                                    <td className="text-right">
+                                        <div className="flex items-center justify-end gap-1.5">
+                                            <Button
+                                                asChild
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 gap-1 px-2 text-xs"
+                                            >
+                                                <Link
+                                                    href={`/content/${item.id}`}
+                                                >
+                                                    Open
+                                                    <ArrowRight data-icon="inline-end" />
+                                                </Link>
+                                            </Button>
+                                            {(canManage || isOwner) && (
+                                                <DeleteContentDialog
+                                                    contentId={item.id}
+                                                    contentTitle={item.title}
+                                                />
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

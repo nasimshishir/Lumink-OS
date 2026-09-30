@@ -15,6 +15,7 @@ class FinanceController extends Controller
         $periodStart = now()->startOfMonth();
         $periodEnd = now()->endOfMonth();
         $invoices = Invoice::with(['business:id,name,slug', 'lines', 'payments'])
+            ->whereHas('business')
             ->latest('issue_date')
             ->get()
             ->each(function (Invoice $invoice) {
@@ -22,6 +23,7 @@ class FinanceController extends Controller
             });
 
         $expenses = Expense::with('business:id,name')
+            ->where(fn ($q) => $q->whereNull('business_id')->orWhereHas('business'))
             ->latest('spent_on')
             ->get();
 

@@ -63,6 +63,12 @@ class Business extends Model
         return $this->hasMany(Expense::class);
     }
 
+    /** @return HasMany<ShootSession, $this> */
+    public function shootSessions(): HasMany
+    {
+        return $this->hasMany(ShootSession::class);
+    }
+
     /** @return HasMany<PerformancePeriod, $this> */
     public function performancePeriods(): HasMany
     {

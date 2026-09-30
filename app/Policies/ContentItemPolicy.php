@@ -7,6 +7,15 @@ use App\Models\User;
 
 class ContentItemPolicy
 {
+    public function before(User $user, string $ability): ?bool
+    {
+        if ($user->isOwner()) {
+            return true;
+        }
+
+        return null;
+    }
+
     public function viewAny(User $user): bool
     {
         return true;

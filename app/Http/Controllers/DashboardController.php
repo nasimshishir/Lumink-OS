@@ -22,25 +22,30 @@ class DashboardController extends Controller
         $canManageOperations = $user->canManageOperations();
         $tasks = Task::query()
             ->with(['business:id,name,slug', 'owner:id,name,avatar', 'contentItem:id,title'])
+            ->where(fn ($query) => $query->whereNull('business_id')->orWhereHas('business'))
             ->when(! $canManageOperations, fn ($query) => $query->where('owner_id', $user->id))
             ->where('status', '!=', 'done')
             ->orderByRaw('due_at is null, due_at asc')
             ->limit(20)
             ->get();
 
-        $visibleContent = fn ($query) => $query->when(
-            ! $canManageOperations,
-            fn ($query) => $query->where(fn ($query) => $query
-                ->where('owner_id', $user->id)
-                ->orWhereHas('tasks', fn ($query) => $query->where('owner_id', $user->id))),
-        );
+        $visibleContent = fn ($query) => $query
+            ->whereHas('business')
+            ->when(
+                ! $canManageOperations,
+                fn ($query) => $query->where(fn ($query) => $query
+                    ->where('owner_id', $user->id)
+                    ->orWhereHas('tasks', fn ($query) => $query->where('owner_id', $user->id))),
+            );
 
         $finance = null;
         if ($user->isOwner()) {
             $invoices = Invoice::with(['business:id,name', 'payments'])
+                ->whereHas('business')
                 ->whereIn('status', ['sent', 'partial', 'overdue'])
                 ->get();
             $directCosts = Expense::where('allocation_type', 'direct')
+                ->where(fn ($q) => $q->whereNull('business_id')->orWhereHas('business'))
                 ->whereBetween('spent_on', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
                 ->sum('amount');
             $revenue = Business::where('status', 'active')->sum('monthly_retainer');
@@ -60,6 +65,7 @@ class DashboardController extends Controller
                 'today' => $tasks->filter(fn (Task $task) => $task->due_at?->isToday() ?? false)->count(),
                 'week' => $tasks->filter(fn (Task $task) => $task->due_at?->between($now, $now->copy()->endOfWeek()) ?? false)->count(),
                 'completed' => Task::where('status', 'done')
+                    ->where(fn ($query) => $query->whereNull('business_id')->orWhereHas('business'))
                     ->when(! $canManageOperations, fn ($query) => $query->where('owner_id', $user->id))
                     ->whereDate('updated_at', $now)
                     ->count(),
@@ -78,9 +84,11 @@ class DashboardController extends Controller
                 ->latest()
                 ->limit(5)
                 ->get(),
-            'businesses' => $canManageOperations ? Business::orderBy('name')->get(['id', 'name']) : [],
-            'users' => $canManageOperations ? User::where('is_active', true)->orderBy('name')->get(['id', 'name']) : [],
+            'businesses' => ($canManageOperations || $user->isOwner()) ? Business::orderBy('name')->get(['id', 'name']) : [],
+            'users' => ($canManageOperations || $user->isOwner()) ? User::where('is_active', true)->orderBy('name')->get(['id', 'name']) : [],
             'canCreateTasks' => $user->can('create', Task::class),
+            'canManage' => $canManageOperations,
+            'isOwner' => $user->isOwner(),
         ]);
     }
 }

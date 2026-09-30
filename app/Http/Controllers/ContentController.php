@@ -22,6 +22,7 @@ class ContentController extends Controller
 
         return Inertia::render('content/index', [
             'content' => ContentItem::with(['business:id,name,slug', 'owner:id,name,avatar', 'campaign:id,name'])
+                ->whereHas('business')
                 ->when(! $request->user()->canManageOperations(), fn ($query) => $query
                     ->where(fn ($query) => $query
                         ->where('owner_id', $request->user()->id)
@@ -32,6 +33,8 @@ class ContentController extends Controller
             'businesses' => $request->user()->canManageOperations()
                 ? Business::orderBy('name')->get(['id', 'name'])
                 : [],
+            'canManage' => $request->user()->canManageOperations(),
+            'isOwner' => $request->user()->isOwner(),
         ]);
     }
 
@@ -53,9 +56,10 @@ class ContentController extends Controller
         return Inertia::render('content/show', [
             'content' => $contentItem,
             'stages' => ContentItem::STAGES,
-            'users' => $request->user()->canManageOperations()
-                ? User::where('is_active', true)->orderBy('name')->get(['id', 'name'])
-                : [],
+            'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'businesses' => Business::orderBy('name')->get(['id', 'name']),
+            'canManage' => $request->user()->canManageOperations(),
+            'isOwner' => $request->user()->isOwner(),
         ]);
     }
 
@@ -64,6 +68,12 @@ class ContentController extends Controller
         abort_unless($request->user()->can('update', $contentItem), 403);
 
         $data = $request->validate([
+            'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'type' => ['sometimes', 'required', 'string', 'in:reel,story,static,carousel,other'],
+            'priority' => ['sometimes', 'required', 'in:low,medium,high'],
+            'publish_at' => ['sometimes', 'nullable', 'date'],
+            'owner_id' => ['sometimes', 'nullable', 'exists:users,id'],
+            'business_id' => ['sometimes', 'required', 'exists:businesses,id'],
             'stage' => ['sometimes', 'in:'.implode(',', ContentItem::STAGES)],
             'brief' => ['sometimes', 'nullable', 'string'],
             'hook' => ['sometimes', 'nullable', 'string'],
@@ -131,7 +141,7 @@ class ContentController extends Controller
             }
         }
 
-        return back();
+        return back()->with('success', "Content '{$contentItem->title}' updated.");
     }
 
     public function store(Request $request): RedirectResponse

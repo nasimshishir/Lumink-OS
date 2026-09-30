@@ -12,6 +12,8 @@ import {
 import { useState } from 'react';
 import { AddContentDialog } from '@/components/add-content-dialog';
 import { AddTaskDialog } from '@/components/add-task-dialog';
+import { DeleteTaskDialog } from '@/components/delete-task-dialog';
+import { EditTaskDialog } from '@/components/edit-task-dialog';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,10 +46,15 @@ type Content = {
 type Task = {
     id: number;
     title: string;
+    description?: string | null;
     type: string;
-    due_at?: string;
+    due_at?: string | null;
     status: string;
-    owner?: { name: string };
+    priority?: string;
+    estimate_minutes?: number | null;
+    actual_minutes?: number | null;
+    owner_id?: number | null;
+    owner?: { id?: number; name?: string } | null;
 };
 type Period = {
     id: number;
@@ -366,6 +373,7 @@ export default function BusinessShow({
                                         <th>Work</th>
                                         <th>Owner</th>
                                         <th>Status</th>
+                                        <th className="text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -385,8 +393,48 @@ export default function BusinessShow({
                                                     value={task.status}
                                                 />
                                             </td>
+                                            <td className="text-right">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <EditTaskDialog
+                                                        task={{
+                                                            ...task,
+                                                            business_id:
+                                                                business.id,
+                                                            priority:
+                                                                task.priority ??
+                                                                'medium',
+                                                        }}
+                                                        businesses={[
+                                                            {
+                                                                id: business.id,
+                                                                name: business.name,
+                                                            },
+                                                        ]}
+                                                        users={users}
+                                                    />
+                                                    {(canManage || isOwner) && (
+                                                        <DeleteTaskDialog
+                                                            taskId={task.id}
+                                                            taskTitle={
+                                                                task.title
+                                                            }
+                                                        />
+                                                    )}
+                                                </div>
+                                            </td>
                                         </tr>
                                     ))}
+                                    {business.tasks.length === 0 && (
+                                        <tr>
+                                            <td
+                                                colSpan={6}
+                                                className="py-8 text-center text-sm text-muted-foreground"
+                                            >
+                                                No active tasks for this
+                                                business.
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </section>

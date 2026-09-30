@@ -50,10 +50,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read_all');
     Route::get('/my-work', fn () => Inertia::render('work/index', [
-        'tasks' => Task::with(['business:id,name,slug', 'contentItem:id,title'])
+        'tasks' => Task::with(['business:id,name,slug', 'contentItem:id,title', 'owner:id,name'])
             ->where('owner_id', request()->user()->id)
+            ->where(fn ($q) => $q->whereNull('business_id')->orWhereHas('business'))
             ->orderBy('due_at')
             ->get(),
+        'businesses' => Business::orderBy('name')->get(['id', 'name']),
+        'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+        'canManage' => request()->user()->canManageOperations(),
+        'isOwner' => request()->user()->isOwner(),
     ]))->name('work.index');
 
     Route::patch('/businesses/{business}/toggle-status', [BusinessController::class, 'toggleStatus'])->name('businesses.toggle-status');

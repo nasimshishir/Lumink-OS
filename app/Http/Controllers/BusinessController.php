@@ -4,9 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditEvent;
 use App\Models\Business;
+use App\Models\ContentItem;
+use App\Models\Expense;
+use App\Models\Invoice;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -152,18 +157,42 @@ class BusinessController extends Controller
         $id = $business->id;
         $slug = $business->slug;
 
-        $business->delete();
+        DB::transaction(function () use ($business, $request, $name, $id, $slug) {
+            $taskIds = $business->tasks()->whereNull('deleted_at')->pluck('id')->all();
+            $contentIds = $business->contentItems()->whereNull('deleted_at')->pluck('id')->all();
+            $invoiceIds = $business->invoices()->whereNull('deleted_at')->pluck('id')->all();
+            $expenseIds = $business->expenses()->whereNull('deleted_at')->pluck('id')->all();
 
-        AuditEvent::create([
-            'user_id' => $request->user()->id,
-            'event' => 'business.trashed',
-            'auditable_type' => Business::class,
-            'auditable_id' => $id,
-            'metadata' => [
-                'name' => $name,
-                'slug' => $slug,
-            ],
-        ]);
+            if (! empty($taskIds)) {
+                Task::whereIn('id', $taskIds)->delete();
+            }
+            if (! empty($contentIds)) {
+                ContentItem::whereIn('id', $contentIds)->delete();
+            }
+            if (! empty($invoiceIds)) {
+                Invoice::whereIn('id', $invoiceIds)->delete();
+            }
+            if (! empty($expenseIds)) {
+                Expense::whereIn('id', $expenseIds)->delete();
+            }
+
+            $business->delete();
+
+            AuditEvent::create([
+                'user_id' => $request->user()->id,
+                'event' => 'business.trashed',
+                'auditable_type' => Business::class,
+                'auditable_id' => $id,
+                'metadata' => [
+                    'name' => $name,
+                    'slug' => $slug,
+                    'cascaded_tasks' => $taskIds,
+                    'cascaded_content' => $contentIds,
+                    'cascaded_invoices' => $invoiceIds,
+                    'cascaded_expenses' => $expenseIds,
+                ],
+            ]);
+        });
 
         return to_route('businesses.index')->with('success', "{$name} moved to the Recycle Bin.");
     }
@@ -173,18 +202,56 @@ class BusinessController extends Controller
         $business = Business::onlyTrashed()->findOrFail($id);
         abort_unless($request->user()->can('restore', $business), 403);
 
-        $business->restore();
+        DB::transaction(function () use ($business, $request, $id) {
+            $business->restore();
 
-        AuditEvent::create([
-            'user_id' => $request->user()->id,
-            'event' => 'business.restored',
-            'auditable_type' => Business::class,
-            'auditable_id' => $business->id,
-            'metadata' => [
-                'name' => $business->name,
-                'slug' => $business->slug,
-            ],
-        ]);
+            $lastTrashedEvent = AuditEvent::where('auditable_type', Business::class)
+                ->where('auditable_id', $id)
+                ->where('event', 'business.trashed')
+                ->latest()
+                ->first();
+
+            $metadata = $lastTrashedEvent?->metadata ?? [];
+            $taskIds = $metadata['cascaded_tasks'] ?? null;
+            $contentIds = $metadata['cascaded_content'] ?? null;
+            $invoiceIds = $metadata['cascaded_invoices'] ?? null;
+            $expenseIds = $metadata['cascaded_expenses'] ?? null;
+
+            if (is_array($taskIds) && ! empty($taskIds)) {
+                Task::onlyTrashed()->whereIn('id', $taskIds)->restore();
+            } else {
+                Task::onlyTrashed()->where('business_id', $id)->restore();
+            }
+
+            if (is_array($contentIds) && ! empty($contentIds)) {
+                ContentItem::onlyTrashed()->whereIn('id', $contentIds)->restore();
+            } else {
+                ContentItem::onlyTrashed()->where('business_id', $id)->restore();
+            }
+
+            if (is_array($invoiceIds) && ! empty($invoiceIds)) {
+                Invoice::onlyTrashed()->whereIn('id', $invoiceIds)->restore();
+            } else {
+                Invoice::onlyTrashed()->where('business_id', $id)->restore();
+            }
+
+            if (is_array($expenseIds) && ! empty($expenseIds)) {
+                Expense::onlyTrashed()->whereIn('id', $expenseIds)->restore();
+            } else {
+                Expense::onlyTrashed()->where('business_id', $id)->restore();
+            }
+
+            AuditEvent::create([
+                'user_id' => $request->user()->id,
+                'event' => 'business.restored',
+                'auditable_type' => Business::class,
+                'auditable_id' => $business->id,
+                'metadata' => [
+                    'name' => $business->name,
+                    'slug' => $business->slug,
+                ],
+            ]);
+        });
 
         return back()->with('success', "{$business->name} has been restored from the Recycle Bin.");
     }
@@ -197,18 +264,26 @@ class BusinessController extends Controller
         $name = $business->name;
         $slug = $business->slug;
 
-        $business->forceDelete();
+        DB::transaction(function () use ($business, $request, $id, $name, $slug) {
+            $business->tasks()->withTrashed()->forceDelete();
+            $business->contentItems()->withTrashed()->forceDelete();
+            $business->invoices()->withTrashed()->forceDelete();
+            $business->expenses()->withTrashed()->forceDelete();
+            $business->shootSessions()->delete();
 
-        AuditEvent::create([
-            'user_id' => $request->user()->id,
-            'event' => 'business.force_deleted',
-            'auditable_type' => Business::class,
-            'auditable_id' => $id,
-            'metadata' => [
-                'name' => $name,
-                'slug' => $slug,
-            ],
-        ]);
+            $business->forceDelete();
+
+            AuditEvent::create([
+                'user_id' => $request->user()->id,
+                'event' => 'business.force_deleted',
+                'auditable_type' => Business::class,
+                'auditable_id' => $id,
+                'metadata' => [
+                    'name' => $name,
+                    'slug' => $slug,
+                ],
+            ]);
+        });
 
         return to_route('businesses.index')->with('success', "{$name} has been permanently deleted.");
     }
@@ -220,9 +295,16 @@ class BusinessController extends Controller
         $trashed = Business::onlyTrashed()->get();
         $count = $trashed->count();
 
-        foreach ($trashed as $business) {
-            $business->forceDelete();
-        }
+        DB::transaction(function () use ($trashed) {
+            foreach ($trashed as $business) {
+                $business->tasks()->withTrashed()->forceDelete();
+                $business->contentItems()->withTrashed()->forceDelete();
+                $business->invoices()->withTrashed()->forceDelete();
+                $business->expenses()->withTrashed()->forceDelete();
+                $business->shootSessions()->delete();
+                $business->forceDelete();
+            }
+        });
 
         AuditEvent::create([
             'user_id' => $request->user()->id,

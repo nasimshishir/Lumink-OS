@@ -59,11 +59,17 @@ class TaskController extends Controller
         abort_unless($request->user()->can('update', $task), 403);
 
         $data = $request->validate([
-            'status' => ['sometimes', 'in:todo,in_progress,blocked,review,done'],
-            'priority' => ['sometimes', 'in:low,medium,high'],
+            'title' => ['sometimes', 'required', 'string', 'max:180'],
+            'description' => ['sometimes', 'nullable', 'string'],
+            'type' => ['sometimes', 'required', 'string', 'max:50'],
+            'status' => ['sometimes', 'required', 'in:todo,in_progress,blocked,review,done'],
+            'priority' => ['sometimes', 'required', 'in:low,medium,high'],
             'owner_id' => ['sometimes', 'nullable', 'exists:users,id'],
+            'business_id' => ['sometimes', 'nullable', 'exists:businesses,id'],
+            'content_item_id' => ['sometimes', 'nullable', 'exists:content_items,id'],
             'due_at' => ['sometimes', 'nullable', 'date'],
-            'actual_minutes' => ['sometimes', 'integer', 'min:0'],
+            'estimate_minutes' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'actual_minutes' => ['sometimes', 'nullable', 'integer', 'min:0'],
         ]);
 
         $oldStatus = $task->status;
@@ -97,7 +103,7 @@ class TaskController extends Controller
             'metadata' => $data,
         ]);
 
-        return back();
+        return back()->with('success', "Task '{$task->title}' updated.");
     }
 
     public function destroy(Request $request, Task $task): RedirectResponse
