@@ -91,6 +91,7 @@ class ContentController extends Controller
             'target_audience' => ['sometimes', 'nullable', 'string'],
             'featured_items' => ['sometimes', 'nullable', 'string'],
             'shoot_notes' => ['sometimes', 'nullable', 'string'],
+            'thumbnail_url' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'drive_folder_url' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'raw_footage_url' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'final_asset_url' => ['sometimes', 'nullable', 'string', 'max:1000'],
@@ -168,6 +169,7 @@ class ContentController extends Controller
             'type' => ['required', 'string', 'in:reel,story,static,carousel,other'],
             'business_id' => ['required', 'exists:businesses,id'],
             'publish_at' => ['nullable', 'date'],
+            'thumbnail_url' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $content = ContentItem::create([

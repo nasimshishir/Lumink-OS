@@ -450,4 +450,84 @@ class AgencyOperationsTest extends TestCase
             ->delete("/businesses/{$business->id}/force-delete")
             ->assertForbidden();
     }
+
+    public function test_user_can_view_approval_page_with_dynamic_content_details(): void
+    {
+        $business = Business::create([
+            'name' => 'Gourmet Kitchen',
+            'slug' => 'gourmet-kitchen',
+            'monthly_retainer' => 35000,
+        ]);
+
+        $content = ContentItem::create([
+            'business_id' => $business->id,
+            'title' => 'Tasting Menu Teaser',
+            'type' => 'reel',
+            'stage' => 'client_review',
+            'hook' => 'Have you ever tasted gold on a steak?',
+            'thumbnail_url' => 'https://images.lumink.co/covers/tasting-menu.jpg',
+            'final_asset_url' => 'https://drive.google.com/file/d/123456789/view',
+        ]);
+
+        $approval = ApprovalRequest::create([
+            'content_item_id' => $content->id,
+            'token' => 'dynamic-preview-token-xyz',
+            'status' => 'pending',
+            'version' => 1,
+            'expires_at' => now()->addDay(),
+        ]);
+
+        $response = $this->get("/approve/{$approval->token}");
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('approval/show')
+                ->has('approval', fn ($prop) => $prop
+                    ->where('token', 'dynamic-preview-token-xyz')
+                    ->where('content_item.title', 'Tasting Menu Teaser')
+                    ->where('content_item.hook', 'Have you ever tasted gold on a steak?')
+                    ->where('content_item.thumbnail_url', 'https://images.lumink.co/covers/tasting-menu.jpg')
+                    ->where('content_item.final_asset_url', 'https://drive.google.com/file/d/123456789/view')
+                    ->etc()
+                )
+            );
+    }
+
+    public function test_user_can_update_content_thumbnail_and_asset_urls(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $business = Business::create([
+            'name' => 'Urban Bakery',
+            'slug' => 'urban-bakery',
+            'monthly_retainer' => 15000,
+        ]);
+
+        $content = ContentItem::create([
+            'business_id' => $business->id,
+            'title' => 'Croissant Process Reel',
+            'type' => 'reel',
+            'stage' => 'editing',
+        ]);
+
+        $thumbnail = 'https://images.lumink.co/croissant-thumb.webp';
+        $finalAsset = 'https://drive.google.com/file/d/croissant-render/view';
+
+        $this->actingAs($owner)
+            ->patch("/content/{$content->id}", [
+                'title' => 'Croissant Process Reel Updated',
+                'type' => 'reel',
+                'priority' => 'high',
+                'business_id' => $business->id,
+                'thumbnail_url' => $thumbnail,
+                'final_asset_url' => $finalAsset,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('content_items', [
+            'id' => $content->id,
+            'title' => 'Croissant Process Reel Updated',
+            'thumbnail_url' => $thumbnail,
+            'final_asset_url' => $finalAsset,
+        ]);
+    }
 }

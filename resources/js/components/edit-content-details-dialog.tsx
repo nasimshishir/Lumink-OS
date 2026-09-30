@@ -56,6 +56,7 @@ export function EditContentDetailsDialog({
         target_audience?: string;
         featured_items?: string[];
         shoot_notes?: string;
+        thumbnail_url?: string | null;
         drive_folder_url?: string;
         raw_footage_url?: string;
         final_asset_url?: string;
@@ -109,6 +110,7 @@ export function EditContentDetailsDialog({
             ? content.featured_items.join(', ')
             : '',
         shoot_notes: content.shoot_notes ?? '',
+        thumbnail_url: content.thumbnail_url ?? '',
         drive_folder_url: content.drive_folder_url ?? '',
         raw_footage_url: content.raw_footage_url ?? '',
         final_asset_url: content.final_asset_url ?? '',
@@ -595,6 +597,28 @@ export function EditContentDetailsDialog({
                             )}
 
                             <div className="grid gap-2 border-t pt-3">
+                                <Label htmlFor="thumbnail_url">
+                                    Cover / Thumbnail image URL
+                                </Label>
+                                <Input
+                                    id="thumbnail_url"
+                                    placeholder="https://... (direct image or poster link)"
+                                    value={form.data.thumbnail_url}
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'thumbnail_url',
+                                            e.target.value,
+                                        )
+                                    }
+                                />
+                                {form.errors.thumbnail_url && (
+                                    <p className="text-sm text-red-500">
+                                        {form.errors.thumbnail_url}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="grid gap-2">
                                 <Label htmlFor="drive_folder_url">
                                     Google Drive shots directory
                                 </Label>

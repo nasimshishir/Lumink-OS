@@ -5,11 +5,11 @@ import {
     Edit2,
     ExternalLink,
     Link2,
-    Play,
     Timer,
 } from 'lucide-react';
 import { useState } from 'react';
 import { AddTaskDialog } from '@/components/add-task-dialog';
+import { ContentMediaPreview } from '@/components/content-media-preview';
 import { DeleteContentDialog } from '@/components/delete-content-dialog';
 import { DeleteTaskDialog } from '@/components/delete-task-dialog';
 import { EditContentDetailsDialog } from '@/components/edit-content-details-dialog';
@@ -79,6 +79,7 @@ type Content = {
     target_audience?: string;
     featured_items?: string[];
     shoot_notes?: string;
+    thumbnail_url?: string | null;
     drive_folder_url?: string;
     raw_footage_url?: string;
     final_asset_url?: string;
@@ -474,29 +475,34 @@ export default function ContentShow({
                                 </button>
                             ))}
                         </div>
-                        <div className="relative mx-auto mt-3 aspect-[9/16] max-h-[520px] overflow-hidden rounded-md bg-black">
-                            <img
-                                src="/images/eid-offer-cover.png"
-                                alt="Eid offer food campaign preview"
-                                className="h-full w-full object-cover"
+                        <div className="mt-3">
+                            <ContentMediaPreview
+                                title={content.title}
+                                type={content.type}
+                                stage={content.stage}
+                                thumbnailUrl={content.thumbnail_url}
+                                finalAssetUrl={content.final_asset_url}
+                                rawFootageUrl={content.raw_footage_url}
+                                driveFolderUrl={content.drive_folder_url}
+                                hook={content.hook}
+                                actionTrigger={
+                                    <EditContentDetailsDialog
+                                        content={content}
+                                        users={users}
+                                        availableShoots={availableShoots}
+                                        trigger={
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 border-neutral-700 bg-neutral-900 text-xs text-neutral-300 hover:bg-neutral-800 hover:text-white"
+                                            >
+                                                <Edit2 className="mr-1 size-3" />
+                                                Attach Media / Poster
+                                            </Button>
+                                        }
+                                    />
+                                }
                             />
-                            <div className="absolute inset-x-0 top-0 bg-black/45 p-5 text-center text-white">
-                                <p className="text-sm font-semibold tracking-[0.16em]">
-                                    EID MUBARAK
-                                </p>
-                                <p className="mt-1 text-xs">
-                                    Celebrate with us
-                                </p>
-                            </div>
-                            <div className="absolute inset-x-0 bottom-0 bg-black/55 p-4 text-white">
-                                <p className="text-center text-2xl font-bold text-[#f4c34e]">
-                                    15% OFF
-                                </p>
-                                <div className="mt-3 flex items-center justify-between text-xs">
-                                    <span>0:00 / 0:15</span>
-                                    <Play className="size-4" />
-                                </div>
-                            </div>
                         </div>
                         <div className="mt-3">
                             <p className="lumink-label">Platform caption</p>

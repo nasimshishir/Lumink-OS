@@ -162,6 +162,7 @@ class AgentApiTest extends TestCase
         $driveFolder = 'https://drive.google.com/drive/folders/shots-2026-summer-promo';
         $rawFootage = 'https://drive.google.com/drive/folders/shots-2026-summer-promo-raw';
         $finalAsset = 'https://drive.google.com/file/d/final-4k-render.mp4/view';
+        $thumbnailUrl = 'https://images.lumink.co/thumbnails/summer-promo.jpg';
 
         $response = $this->withHeader('Authorization', "Bearer {$token}")
             ->patchJson("/api/v1/content/{$content->id}", [
@@ -169,6 +170,7 @@ class AgentApiTest extends TestCase
                 'drive_folder_url' => $driveFolder,
                 'raw_footage_url' => $rawFootage,
                 'final_asset_url' => $finalAsset,
+                'thumbnail_url' => $thumbnailUrl,
             ]);
 
         $response->assertOk()
@@ -176,7 +178,8 @@ class AgentApiTest extends TestCase
             ->assertJsonPath('data.stage', 'shot')
             ->assertJsonPath('data.drive_folder_url', $driveFolder)
             ->assertJsonPath('data.raw_footage_url', $rawFootage)
-            ->assertJsonPath('data.final_asset_url', $finalAsset);
+            ->assertJsonPath('data.final_asset_url', $finalAsset)
+            ->assertJsonPath('data.thumbnail_url', $thumbnailUrl);
 
         $this->assertDatabaseHas('content_items', [
             'id' => $content->id,
@@ -184,6 +187,7 @@ class AgentApiTest extends TestCase
             'drive_folder_url' => $driveFolder,
             'raw_footage_url' => $rawFootage,
             'final_asset_url' => $finalAsset,
+            'thumbnail_url' => $thumbnailUrl,
         ]);
     }
 

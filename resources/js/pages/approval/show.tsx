@@ -2,6 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import { CheckCircle2, MessageSquareText } from 'lucide-react';
 import type { FormEvent } from 'react';
 import AppLogoIcon from '@/components/app-logo-icon';
+import { ContentMediaPreview } from '@/components/content-media-preview';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,9 +16,15 @@ type Approval = {
     expires_at: string;
     content_item: {
         title: string;
+        type?: string;
         brief?: string;
+        hook?: string;
         script?: string;
         cta?: string;
+        thumbnail_url?: string | null;
+        final_asset_url?: string | null;
+        drive_folder_url?: string | null;
+        raw_footage_url?: string | null;
         business: { name: string };
     };
 };
@@ -64,34 +71,53 @@ export default function ApprovalShow({ approval }: { approval: Approval }) {
                             </p>
                         </div>
                         <div className="p-5">
-                            <div className="mx-auto max-w-sm overflow-hidden rounded-lg bg-black">
-                                <img
-                                    src="/images/eid-offer-cover.png"
-                                    alt="Food campaign content under review"
-                                    className="aspect-[9/16] w-full object-cover"
+                            <div className="mx-auto max-w-sm">
+                                <ContentMediaPreview
+                                    title={approval.content_item.title}
+                                    type={approval.content_item.type}
+                                    thumbnailUrl={approval.content_item.thumbnail_url}
+                                    finalAssetUrl={approval.content_item.final_asset_url}
+                                    driveFolderUrl={approval.content_item.drive_folder_url}
+                                    rawFootageUrl={approval.content_item.raw_footage_url}
+                                    hook={approval.content_item.hook}
+                                    className="rounded-lg shadow-sm"
                                 />
                             </div>
                             <div className="mt-5 flex flex-col gap-4">
-                                <div>
-                                    <p className="lumink-label">Brief</p>
-                                    <p className="mt-1 text-sm">
-                                        {approval.content_item.brief}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="lumink-label">Caption</p>
-                                    <p className="mt-1 text-sm">
-                                        {approval.content_item.script}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="lumink-label">
-                                        Call to action
-                                    </p>
-                                    <p className="mt-1 text-sm">
-                                        {approval.content_item.cta}
-                                    </p>
-                                </div>
+                                {approval.content_item.hook && (
+                                    <div>
+                                        <p className="lumink-label">Hook</p>
+                                        <p className="mt-1 text-sm font-medium">
+                                            {approval.content_item.hook}
+                                        </p>
+                                    </div>
+                                )}
+                                {approval.content_item.brief && (
+                                    <div>
+                                        <p className="lumink-label">Brief</p>
+                                        <p className="mt-1 text-sm">
+                                            {approval.content_item.brief}
+                                        </p>
+                                    </div>
+                                )}
+                                {approval.content_item.script && (
+                                    <div>
+                                        <p className="lumink-label">Script / Caption</p>
+                                        <p className="mt-1 whitespace-pre-line text-sm">
+                                            {approval.content_item.script}
+                                        </p>
+                                    </div>
+                                )}
+                                {approval.content_item.cta && (
+                                    <div>
+                                        <p className="lumink-label">
+                                            Call to action
+                                        </p>
+                                        <p className="mt-1 text-sm">
+                                            {approval.content_item.cta}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </section>
