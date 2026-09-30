@@ -14,10 +14,15 @@ use Illuminate\Support\Carbon;
  * @property int|null $campaign_id
  * @property int|null $owner_id
  * @property string $title
+ * @property string $type
  * @property string $stage
+ * @property string $priority
+ * @property string|null $brief
+ * @property Carbon|null $publish_at
  * @property int $revision_number
  * @property Carbon|null $deleted_at
  * @property-read User|null $owner
+ * @property-read Business|null $business
  */
 class ContentItem extends Model
 {

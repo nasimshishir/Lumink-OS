@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\BusinessController;
+use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DriveConnectionController;
@@ -40,6 +41,7 @@ Route::get('/demo-login', function () {
 
 Route::get('/approve/{token}', [ApprovalController::class, 'show'])->name('approvals.show');
 Route::post('/approve/{token}', [ApprovalController::class, 'respond'])->name('approvals.respond');
+Route::get('/calendar/feed/{token}.ics', [CalendarController::class, 'feed'])->name('calendar.feed');
 
 Route::middleware('auth')->group(function () {
     Route::get('/today', DashboardController::class)->name('today');
@@ -78,13 +80,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
-    Route::get('/calendar', fn () => Inertia::render('calendar/index', [
-        'tasks' => Task::with('business:id,name')
-            ->when(! request()->user()->canManageOperations(), fn ($query) => $query->where('owner_id', request()->user()->id))
-            ->whereNotNull('due_at')
-            ->orderBy('due_at')
-            ->get(),
-    ]))->name('calendar.index');
+    Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
+    Route::get('/calendar/export', [CalendarController::class, 'export'])->name('calendar.export');
+    Route::post('/calendar/regenerate-token', [CalendarController::class, 'regenerateToken'])->name('calendar.regenerate-token');
 
     Route::middleware('owner')->group(function () {
         Route::get('/finance', FinanceController::class)->name('finance.index');

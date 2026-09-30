@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -32,8 +33,9 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $avatar
  * @property string $role
  * @property bool $is_active
+ * @property string|null $calendar_token
  */
-#[Fillable(['name', 'email', 'password', 'google_id', 'avatar', 'role', 'is_active'])]
+#[Fillable(['name', 'email', 'password', 'google_id', 'avatar', 'role', 'is_active', 'calendar_token'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
@@ -80,5 +82,22 @@ class User extends Authenticatable implements PasskeyUser
         return in_array($this->role, ['owner', 'manager'], true)
             || $this->hasAnyRole(['owner', 'manager'])
             || $this->can('businesses.view');
+    }
+
+    public function getCalendarToken(): string
+    {
+        if (empty($this->calendar_token)) {
+            return $this->regenerateCalendarToken();
+        }
+
+        return $this->calendar_token;
+    }
+
+    public function regenerateCalendarToken(): string
+    {
+        $token = Str::random(48);
+        $this->forceFill(['calendar_token' => $token])->save();
+
+        return $token;
     }
 }

@@ -13,13 +13,17 @@ use Illuminate\Support\Carbon;
  * @property int|null $owner_id
  * @property int|null $created_by
  * @property string $title
+ * @property string|null $description
+ * @property string $type
  * @property string $status
  * @property string $priority
  * @property int $actual_minutes
+ * @property Carbon|null $starts_at
  * @property Carbon|null $due_at
  * @property Carbon|null $deleted_at
  * @property-read User|null $owner
  * @property-read User|null $creator
+ * @property-read Business|null $business
  */
 class Task extends Model
 {
