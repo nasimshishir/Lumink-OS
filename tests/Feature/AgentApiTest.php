@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Business;
 use App\Models\ContentItem;
+use App\Models\ShootSession;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -337,4 +338,128 @@ class AgentApiTest extends TestCase
             ->getJson('/api/v1/user')
             ->assertUnauthorized();
     }
+
+    public function test_agent_can_create_shoot_with_auto_extracted_broll_tags_and_query_by_tag(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $token = $owner->createToken('Autonomous Marketing Bot')->plainTextToken;
+
+        $business = Business::create([
+            'name' => 'Lumink Cafe',
+            'slug' => 'lumink-cafe',
+            'monthly_retainer' => 30000,
+        ]);
+
+        // 1. Create a shoot session where agent provides rich notes, letting the system auto-extract b-roll tags
+        $response = $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson('/api/v1/shoots', [
+                'business_id' => $business->id,
+                'title' => 'Espresso Extraction & Latte Art Slow-Mo Shoot',
+                'location' => 'Main Downtown Branch Espresso Bar',
+                'starts_at' => now()->addDays(2)->toDateTimeString(),
+                'status' => 'scheduled',
+                'notes' => 'Captured 4K 120fps steam wand texture, grinder pour, and espresso extraction.',
+                'footage_summary' => 'Close-up macro lens shots of roasted beans and barista latte art swirl.',
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.title', 'Espresso Extraction & Latte Art Slow-Mo Shoot');
+
+        $shootId = $response->json('data.id');
+        $shoot = ShootSession::find($shootId);
+        $this->assertNotNull($shoot);
+        $this->assertIsArray($shoot->broll_tags);
+        $this->assertContains('espresso', $shoot->broll_tags);
+        $this->assertContains('latte', $shoot->broll_tags);
+
+        // 2. Query shoots filtering by tag
+        $queryResponse = $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson("/api/v1/shoots?business_id={$business->id}&tag=latte");
+
+        $queryResponse->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $shootId);
+
+        // Search with non-matching tag should return 0
+        $missResponse = $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson("/api/v1/shoots?business_id={$business->id}&tag=nonexistenttagxyz");
+
+        $missResponse->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_agent_can_plan_content_referencing_shoots_and_task_contains_footage(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $token = $owner->createToken('Autonomous Marketing Bot')->plainTextToken;
+
+        $business = Business::create([
+            'name' => 'Burger Lab',
+            'slug' => 'burger-lab',
+            'monthly_retainer' => 45000,
+        ]);
+
+        // Create past shoot (B-roll library)
+        $pastShoot = ShootSession::create([
+            'business_id' => $business->id,
+            'title' => 'Kitchen Sizzle & Grill Master B-Roll',
+            'starts_at' => now()->subDays(5),
+            'status' => 'completed',
+            'drive_folder_url' => 'https://drive.google.com/drive/folders/shoots-archive-grill-sizzle',
+            'broll_tags' => ['sizzle', 'grill', 'patty', 'flame'],
+            'footage_summary' => 'Close up flame broiling and searing patties.',
+        ]);
+
+        // Create main shoot session
+        $mainShoot = ShootSession::create([
+            'business_id' => $business->id,
+            'title' => 'Chef Tasting Table Shoot',
+            'starts_at' => now()->addDays(1),
+            'status' => 'scheduled',
+            'drive_folder_url' => 'https://drive.google.com/drive/folders/shoots-archive-chef-table',
+            'broll_tags' => ['chef', 'tasting', 'table'],
+        ]);
+
+        // Agent creates content referencing primary shoot and past b-roll shoot, with editing task
+        $contentResponse = $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson('/api/v1/content', [
+                'business_id' => $business->id,
+                'title' => 'The Perfect Patty Sizzle Reel',
+                'type' => 'reel',
+                'stage' => 'planned',
+                'primary_shoot_id' => $mainShoot->id,
+                'referenced_shoot_ids' => [$pastShoot->id],
+                'tasks' => [
+                    [
+                        'title' => 'Edit 30s Reel using Sizzle B-Roll and Chef Tasting',
+                        'type' => 'video_editing',
+                        'priority' => 'high',
+                        'estimate_minutes' => 90,
+                    ],
+                ],
+            ]);
+
+        $contentResponse->assertCreated()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.primary_shoot_id', $mainShoot->id)
+            ->assertJsonPath('data.drive_folder_url', 'https://drive.google.com/drive/folders/shoots-archive-chef-table')
+            ->assertJsonPath('data.primary_shoot.id', $mainShoot->id)
+            ->assertJsonPath('data.referenced_shoots.0.id', $pastShoot->id);
+
+        $createdContent = ContentItem::find($contentResponse->json('data.id'));
+        $this->assertNotNull($createdContent);
+        $task = $createdContent->tasks()->first();
+        $this->assertNotNull($task);
+
+        // Fetch task via editor API endpoint
+        $taskResponse = $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson("/api/v1/tasks/{$task->id}");
+
+        $taskResponse->assertOk()
+            ->assertJsonPath('data.id', $task->id)
+            ->assertJsonPath('data.content_item.primary_shoot.drive_folder_url', 'https://drive.google.com/drive/folders/shoots-archive-chef-table')
+            ->assertJsonPath('data.content_item.referenced_shoots.0.drive_folder_url', 'https://drive.google.com/drive/folders/shoots-archive-grill-sizzle');
+    }
 }
+

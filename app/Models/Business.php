@@ -12,7 +12,8 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string $slug
  * @property string $status
- * @property string $monthly_retainer
+ * @property string|null $drive_folder_id
+ * @property array<string, mixed>|null $drive_folders_map
  * @property Carbon|null $deleted_at
  */
 class Business extends Model
@@ -27,6 +28,7 @@ class Business extends Model
             'platforms' => 'array',
             'brand_profile' => 'array',
             'deliverable_targets' => 'array',
+            'drive_folders_map' => 'array',
             'monthly_retainer' => 'decimal:2',
             'agreement_start' => 'date',
             'agreement_end' => 'date',

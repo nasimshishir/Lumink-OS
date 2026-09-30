@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditEvent;
 use App\Models\Business;
 use App\Models\ContentItem;
+use App\Models\ShootSession;
 use App\Models\User;
 use App\Notifications\ContentStageChanged;
 use Illuminate\Http\RedirectResponse;
@@ -43,9 +44,10 @@ class ContentController extends Controller
         abort_unless($request->user()->can('view', $contentItem), 403);
 
         $contentItem->load([
-            'business:id,name,slug,drive_folder_url',
+            'business:id,name,slug,drive_folder_url,drive_folders_map',
             'campaign:id,name',
             'owner:id,name,avatar',
+            'primaryShoot:id,title,starts_at,location,drive_folder_url,broll_tags,footage_summary',
             'platformVersions',
             'tasks.owner:id,name,avatar',
             'approvals' => fn ($query) => $query->with('responses')->latest(),
@@ -53,8 +55,15 @@ class ContentController extends Controller
 
         $contentItem->approvals->makeVisible('token');
 
+        $referencedShoots = $contentItem->referencedShoots();
+        $availableShoots = ShootSession::where('business_id', $contentItem->business_id)
+            ->orderBy('starts_at', 'desc')
+            ->get(['id', 'title', 'starts_at', 'location', 'drive_folder_url', 'broll_tags', 'footage_summary']);
+
         return Inertia::render('content/show', [
             'content' => $contentItem,
+            'referencedShoots' => $referencedShoots,
+            'availableShoots' => $availableShoots,
             'stages' => ContentItem::STAGES,
             'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'businesses' => Business::orderBy('name')->get(['id', 'name']),
@@ -85,6 +94,9 @@ class ContentController extends Controller
             'drive_folder_url' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'raw_footage_url' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'final_asset_url' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'primary_shoot_id' => ['sometimes', 'nullable', 'exists:shoot_sessions,id'],
+            'referenced_shoot_ids' => ['sometimes', 'nullable', 'array'],
+            'referenced_shoot_ids.*' => ['integer', 'exists:shoot_sessions,id'],
         ]);
 
         if (isset($data['featured_items'])) {

@@ -1,5 +1,5 @@
 import { useForm } from '@inertiajs/react';
-import { Pencil } from 'lucide-react';
+import { ExternalLink, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,29 @@ export type EditableTask = {
     business?: { id: number; name: string } | null;
     owner_id?: number | null;
     owner?: { id?: number; name?: string } | null;
+    content_item?: {
+        id?: number;
+        title: string;
+        drive_folder_url?: string | null;
+        raw_footage_url?: string | null;
+        final_asset_url?: string | null;
+        primary_shoot?: {
+            id: number;
+            title: string;
+            starts_at: string;
+            location?: string | null;
+            drive_folder_url?: string | null;
+        } | null;
+        referenced_shoots?:
+            | {
+                  id: number;
+                  title: string;
+                  starts_at: string;
+                  drive_folder_url?: string | null;
+                  broll_tags?: string[] | null;
+              }[]
+            | null;
+    } | null;
 };
 
 export function EditTaskDialog({
@@ -159,6 +182,158 @@ export function EditTaskDialog({
                             tracking time.
                         </DialogDescription>
                     </DialogHeader>
+
+                    {task.content_item &&
+                        (task.content_item.drive_folder_url ||
+                            task.content_item.primary_shoot?.drive_folder_url ||
+                            (task.content_item.referenced_shoots &&
+                                task.content_item.referenced_shoots.length >
+                                    0) ||
+                            task.content_item.final_asset_url) && (
+                            <div className="flex flex-col gap-2.5 rounded-lg border border-primary/20 bg-primary/5 p-3.5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold tracking-wider text-primary uppercase">
+                                        Footage & Asset Pipeline
+                                    </span>
+                                    <span className="truncate text-[11px] text-muted-foreground">
+                                        {task.content_item.title}
+                                    </span>
+                                </div>
+
+                                {(task.content_item.primary_shoot
+                                    ?.drive_folder_url ||
+                                    task.content_item.drive_folder_url) && (
+                                    <div className="flex items-center justify-between gap-2 rounded border bg-background/80 p-2 text-xs">
+                                        <div className="min-w-0 pr-2">
+                                            <p className="font-medium text-foreground">
+                                                🎬 Primary Shoot Footage
+                                            </p>
+                                            <p className="truncate text-[11px] text-muted-foreground">
+                                                {task.content_item.primary_shoot
+                                                    ?.title ??
+                                                    'Raw camera footage directory'}
+                                            </p>
+                                        </div>
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="default"
+                                            className="h-7 shrink-0 text-xs"
+                                        >
+                                            <a
+                                                href={
+                                                    task.content_item
+                                                        .primary_shoot
+                                                        ?.drive_folder_url ||
+                                                    task.content_item
+                                                        .drive_folder_url!
+                                                }
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                Open Shoot Folder
+                                                <ExternalLink className="ml-1 size-3" />
+                                            </a>
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {task.content_item.referenced_shoots &&
+                                    task.content_item.referenced_shoots.length >
+                                        0 && (
+                                        <div className="flex flex-col gap-1.5 pt-1">
+                                            <p className="text-[11px] font-medium text-muted-foreground">
+                                                🗂️ Referenced B-Roll Library
+                                                Folders:
+                                            </p>
+                                            {task.content_item.referenced_shoots.map(
+                                                (shoot) => (
+                                                    <div
+                                                        key={shoot.id}
+                                                        className="flex items-center justify-between gap-2 rounded border bg-background/60 p-1.5 text-xs"
+                                                    >
+                                                        <div className="min-w-0 truncate pr-2">
+                                                            <span className="font-medium">
+                                                                {shoot.title}
+                                                            </span>
+                                                            {shoot.broll_tags &&
+                                                                shoot.broll_tags
+                                                                    .length >
+                                                                    0 && (
+                                                                    <span className="ml-2 text-[10px] text-muted-foreground">
+                                                                        (
+                                                                        {shoot.broll_tags
+                                                                            .slice(
+                                                                                0,
+                                                                                3,
+                                                                            )
+                                                                            .join(
+                                                                                ', ',
+                                                                            )}
+                                                                        )
+                                                                    </span>
+                                                                )}
+                                                        </div>
+                                                        {shoot.drive_folder_url && (
+                                                            <Button
+                                                                asChild
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="h-6 shrink-0 text-[11px]"
+                                                            >
+                                                                <a
+                                                                    href={
+                                                                        shoot.drive_folder_url
+                                                                    }
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                >
+                                                                    Open B-Roll
+                                                                    <ExternalLink className="ml-1 size-3" />
+                                                                </a>
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                ),
+                                            )}
+                                        </div>
+                                    )}
+
+                                {task.content_item.final_asset_url && (
+                                    <div className="flex items-center justify-between gap-2 rounded border border-emerald-500/20 bg-emerald-500/5 p-2 text-xs">
+                                        <div className="min-w-0 pr-2">
+                                            <p className="font-medium text-emerald-700 dark:text-emerald-400">
+                                                📤 Review Deliverable Asset
+                                            </p>
+                                            <p className="truncate text-[11px] text-muted-foreground">
+                                                {
+                                                    task.content_item
+                                                        .final_asset_url
+                                                }
+                                            </p>
+                                        </div>
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 shrink-0 text-xs"
+                                        >
+                                            <a
+                                                href={
+                                                    task.content_item
+                                                        .final_asset_url
+                                                }
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                View Asset
+                                                <ExternalLink className="ml-1 size-3" />
+                                            </a>
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                     <div className="flex flex-col gap-2">
                         <Label htmlFor="edit-task-title">Task title</Label>

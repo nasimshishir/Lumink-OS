@@ -43,8 +43,12 @@ class AgentSchemaController extends Controller
                     'description' => 'Inspect active client businesses, their retainer targets, and brand profiles.',
                     'action' => 'GET /api/v1/businesses or GET /api/v1/businesses/{id}',
                 ],
+                '1b_broll_bank_inspection' => [
+                    'description' => 'Search existing shoot archive & B-roll library for footage keywords (e.g. sizzle, cocktail, chef) to reuse in content without scheduling new shoots.',
+                    'action' => 'GET /api/v1/shoots?business_id={id}&tag={keyword}&has_footage=true',
+                ],
                 '2_content_planning' => [
-                    'description' => 'Create strategic content deliverables with script, hook, brief, target audience, and optional initial tasks.',
+                    'description' => 'Create strategic content deliverables with script, hook, brief, target audience, and optional initial tasks. Can link primary_shoot_id and referenced_shoot_ids to reuse archive footage.',
                     'action' => 'POST /api/v1/content',
                 ],
                 '3_task_definition' => [
@@ -52,8 +56,8 @@ class AgentSchemaController extends Controller
                     'action' => 'POST /api/v1/tasks or embed tasks in POST /api/v1/content',
                 ],
                 '4_shots_and_drive_linking' => [
-                    'description' => 'When filming is completed or shots are in Google Drive, update the deliverable with the shots directory URL and advance stage.',
-                    'action' => 'PATCH /api/v1/content/{id} with drive_folder_url or raw_footage_url, stage: "shot" or "editing"',
+                    'description' => 'Link shoots by date or content. Content can link primary_shoot_id and referenced_shoot_ids to pull B-roll from multiple past shoots without linking file by file.',
+                    'action' => 'PATCH /api/v1/content/{id} with primary_shoot_id and referenced_shoot_ids: [id1, id2]',
                 ],
                 '5_task_progress_tracking' => [
                     'description' => 'Update task status as team or AI works through the checklist.',
@@ -418,8 +422,10 @@ Authentication: Send `Authorization: Bearer <your_token>` on every request.
    - `GET /businesses`: List businesses with deliverable targets and Google Drive root folder.
    - `GET /businesses/{id}`: View specific client details and current campaign plans.
 
-2. **Plan Content Deliverables**: Create content items according to the client strategy.
-   - `POST /content`: Create deliverable. Include `business_id`, `title`, `type` (`reel`, `carousel`, `video`, `photo`, `story`, `post`), `stage` (`idea`, `planned`, `scripted`, `shoot_scheduled`, `shot`, `editing`, `client_review`, `approved`, `scheduled`, `published`), `brief`, `hook`, `script`, `cta`, `target_audience`, `publish_at`.
+2. **Plan Content Deliverables & Reuse Archive Footage**:
+   - `GET /shoots?business_id={id}&tag={keyword}`: Search the client's B-roll archive first! If high-quality footage already exists from previous shoots, plan content around it to maximize production ROI.
+   - `POST /content`: Create deliverable. Include `business_id`, `title`, `type` (`reel`, `carousel`, `video`, `photo`, `story`, `post`), `stage`, `brief`, `hook`, `script`, `cta`, `target_audience`, `publish_at`.
+   - **Cross-Referencing Shoots**: Pass `primary_shoot_id` (the dedicated shoot) and `referenced_shoot_ids: [id1, id2]` (past shoots with reusable B-roll).
    - You can also supply a `tasks` array directly inside `POST /content` to create all sub-tasks in one request!
 
 3. **Manage & Track Tasks**:
@@ -427,11 +433,11 @@ Authentication: Send `Authorization: Bearer <your_token>` on every request.
    - `PATCH /tasks/{id}`: Update task status (`todo`, `in_progress`, `blocked`, `review`, `done`) and track `actual_minutes`.
 
 4. **Connect Google Drive Shots & Media Assets**:
-   - When a shoot is scheduled or shots are captured in Google Drive, connect the directory:
-     - On the Content Item: `PATCH /content/{id}` with `drive_folder_url` (the directory of the shots in Drive) and/or `raw_footage_url`. Advance `stage` to `'shot'` or `'editing'`.
-     - On the Shoot Session: `PATCH /shoots/{id}` with `drive_folder_url` and `status: 'completed'`.
+   - When a shoot is scheduled or shots are captured in Google Drive:
+     - On the Shoot Session: `POST /shoots` automatically provisions `01_Raw_Footage/Shoots_Archive/YYYY-MM-DD_Title/` in Drive!
+     - On the Content Item: `PATCH /content/{id}` with `primary_shoot_id` or `referenced_shoot_ids` so the editor has 1-click links to all necessary footage folders.
    - When the content is edited and ready:
-     - `PATCH /content/{id}` with `final_asset_url` (link to the exported file in Drive) and set `stage: 'client_review'` or `'approved'`.
+     - `PATCH /content/{id}` with `final_asset_url` (link to the single exported review file in Drive) and set `stage: 'client_review'` or `'approved'`.
 
 ## Enums
 - **Content Stages**: `idea`, `planned`, `scripted`, `shoot_scheduled`, `shot`, `editing`, `internal_review`, `client_review`, `approved`, `scheduled`, `published`

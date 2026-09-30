@@ -25,10 +25,18 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 
 type UserOption = { id: number; name: string };
+type ShootOption = {
+    id: number;
+    title: string;
+    starts_at: string;
+    drive_folder_url?: string | null;
+    broll_tags?: string[] | null;
+};
 
 export function EditContentDetailsDialog({
     content,
     users = [],
+    availableShoots = [],
     trigger,
 }: {
     content: {
@@ -36,6 +44,8 @@ export function EditContentDetailsDialog({
         title?: string;
         type?: string;
         priority?: string;
+        primary_shoot_id?: number | null;
+        referenced_shoot_ids?: number[] | null;
         publish_at?: string;
         owner_id?: number | null;
         owner?: { id?: number; name?: string } | null;
@@ -51,6 +61,7 @@ export function EditContentDetailsDialog({
         final_asset_url?: string;
     };
     users?: UserOption[];
+    availableShoots?: ShootOption[];
     trigger?: React.ReactNode;
 }) {
     const [open, setOpen] = useState(false);
@@ -79,6 +90,10 @@ export function EditContentDetailsDialog({
         title: content.title ?? '',
         type: content.type ?? 'reel',
         priority: content.priority ?? 'medium',
+        primary_shoot_id: content.primary_shoot_id
+            ? String(content.primary_shoot_id)
+            : 'none',
+        referenced_shoot_ids: content.referenced_shoot_ids ?? ([] as number[]),
         publish_at: formatForInput(content.publish_at),
         owner_id: content.owner_id
             ? String(content.owner_id)
@@ -109,8 +124,29 @@ export function EditContentDetailsDialog({
         setOpen(nextOpen);
     }
 
+    function toggleReferencedShoot(shootId: number) {
+        const current = form.data.referenced_shoot_ids;
+
+        if (current.includes(shootId)) {
+            form.setData(
+                'referenced_shoot_ids',
+                current.filter((id) => id !== shootId),
+            );
+        } else {
+            form.setData('referenced_shoot_ids', [...current, shootId]);
+        }
+    }
+
     function submit(event: FormEvent) {
         event.preventDefault();
+
+        form.transform((data) => ({
+            ...data,
+            primary_shoot_id:
+                data.primary_shoot_id === 'none' || !data.primary_shoot_id
+                    ? null
+                    : Number(data.primary_shoot_id),
+        }));
 
         form.patch(`/content/${content.id}`, {
             preserveScroll: true,
@@ -437,6 +473,126 @@ export function EditContentDetailsDialog({
                                     </p>
                                 )}
                             </div>
+
+                            {availableShoots.length > 0 && (
+                                <div className="grid gap-3 border-t pt-3">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="primary_shoot_id">
+                                            Primary Shoot Session
+                                        </Label>
+                                        <Select
+                                            value={form.data.primary_shoot_id}
+                                            onValueChange={(val) => {
+                                                form.setData(
+                                                    'primary_shoot_id',
+                                                    val,
+                                                );
+
+                                                if (val !== 'none') {
+                                                    const shoot =
+                                                        availableShoots.find(
+                                                            (s) =>
+                                                                String(s.id) ===
+                                                                val,
+                                                        );
+
+                                                    if (
+                                                        shoot?.drive_folder_url &&
+                                                        !form.data
+                                                            .drive_folder_url
+                                                    ) {
+                                                        form.setData(
+                                                            'drive_folder_url',
+                                                            shoot.drive_folder_url,
+                                                        );
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <SelectTrigger id="primary_shoot_id">
+                                                <SelectValue placeholder="Select primary shoot session" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectGroup>
+                                                    <SelectItem value="none">
+                                                        None / Independent Shoot
+                                                    </SelectItem>
+                                                    {availableShoots.map(
+                                                        (shoot) => (
+                                                            <SelectItem
+                                                                key={shoot.id}
+                                                                value={String(
+                                                                    shoot.id,
+                                                                )}
+                                                            >
+                                                                {shoot.title} (
+                                                                {new Date(
+                                                                    shoot.starts_at,
+                                                                ).toLocaleDateString()}
+                                                                )
+                                                            </SelectItem>
+                                                        ),
+                                                    )}
+                                                </SelectGroup>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label>
+                                            Referenced B-Roll Shoots (Archive
+                                            Footage)
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            Select past shoots whose B-roll or
+                                            footage will be reused for this
+                                            deliverable.
+                                        </p>
+                                        <div className="flex max-h-36 flex-col gap-1.5 overflow-y-auto rounded-md border p-2 text-xs">
+                                            {availableShoots.map((shoot) => {
+                                                const isSelected =
+                                                    form.data.referenced_shoot_ids.includes(
+                                                        shoot.id,
+                                                    );
+
+                                                return (
+                                                    <label
+                                                        key={shoot.id}
+                                                        className={`flex cursor-pointer items-center justify-between rounded p-1.5 transition-colors ${
+                                                            isSelected
+                                                                ? 'bg-primary/10 font-medium text-primary'
+                                                                : 'hover:bg-muted'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={
+                                                                    isSelected
+                                                                }
+                                                                onChange={() =>
+                                                                    toggleReferencedShoot(
+                                                                        shoot.id,
+                                                                    )
+                                                                }
+                                                                className="rounded border-gray-300 text-primary focus:ring-primary"
+                                                            />
+                                                            <span>
+                                                                {shoot.title}
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-[11px] text-muted-foreground">
+                                                            {new Date(
+                                                                shoot.starts_at,
+                                                            ).toLocaleDateString()}
+                                                        </span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="grid gap-2 border-t pt-3">
                                 <Label htmlFor="drive_folder_url">

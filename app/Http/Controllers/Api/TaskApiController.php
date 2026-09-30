@@ -17,7 +17,12 @@ class TaskApiController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Task::query()
-            ->with(['business:id,name,slug', 'contentItem:id,title,type,stage,drive_folder_url', 'owner:id,name'])
+            ->with([
+                'business:id,name,slug,drive_folder_url,drive_folders_map',
+                'contentItem' => fn ($q) => $q->select(['id', 'title', 'type', 'stage', 'drive_folder_url', 'raw_footage_url', 'final_asset_url', 'primary_shoot_id', 'referenced_shoot_ids'])
+                    ->with('primaryShoot:id,title,starts_at,location,drive_folder_url'),
+                'owner:id,name',
+            ])
             ->where(fn ($q) => $q->whereNull('business_id')->orWhereHas('business'));
 
         if ($request->filled('business_id')) {
@@ -108,11 +113,21 @@ class TaskApiController extends Controller
     {
         abort_if($task->trashed(), 404, 'Task is in Recycle Bin.');
 
-        $task->load(['business:id,name,slug,drive_folder_url', 'contentItem:id,title,type,stage,drive_folder_url', 'owner:id,name']);
+        $task->load([
+            'business:id,name,slug,drive_folder_url,drive_folders_map',
+            'contentItem' => fn ($q) => $q->select(['id', 'title', 'type', 'stage', 'drive_folder_url', 'raw_footage_url', 'final_asset_url', 'primary_shoot_id', 'referenced_shoot_ids'])
+                ->with('primaryShoot:id,title,starts_at,location,drive_folder_url'),
+            'owner:id,name',
+        ]);
+
+        $taskData = $task->toArray();
+        if ($task->contentItem) {
+            $taskData['content_item']['referenced_shoots'] = $task->contentItem->referencedShoots();
+        }
 
         return response()->json([
             'status' => 'success',
-            'data' => $task,
+            'data' => $taskData,
         ]);
     }
 

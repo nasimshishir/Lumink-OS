@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuditEvent;
 use App\Models\ContentItem;
+use App\Models\ShootSession;
 use App\Models\Task;
+use App\Services\GoogleDriveService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +21,12 @@ class ContentApiController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = ContentItem::query()
-            ->with(['business:id,name,slug', 'owner:id,name', 'tasks:id,content_item_id,title,status,priority,due_at'])
+            ->with([
+                'business:id,name,slug,drive_folder_url',
+                'owner:id,name',
+                'primaryShoot:id,title,starts_at,location,drive_folder_url',
+                'tasks:id,content_item_id,title,status,priority,due_at',
+            ])
             ->whereHas('business');
 
         if ($request->filled('business_id')) {
@@ -32,6 +39,14 @@ class ContentApiController extends Controller
 
         if ($request->filled('type')) {
             $query->where('type', $request->string('type'));
+        }
+
+        if ($request->filled('shoot_id')) {
+            $shootId = $request->integer('shoot_id');
+            $query->where(function ($q) use ($shootId) {
+                $q->where('primary_shoot_id', $shootId)
+                    ->orWhereJsonContains('referenced_shoot_ids', $shootId);
+            });
         }
 
         if ($request->filled('search')) {
@@ -55,11 +70,14 @@ class ContentApiController extends Controller
     /**
      * Create a new content deliverable (and optional initial tasks).
      */
-    public function store(Request $request): JsonResponse
+    public function store(Request $request, GoogleDriveService $driveService): JsonResponse
     {
         $data = $request->validate([
             'business_id' => ['required', 'exists:businesses,id'],
             'campaign_id' => ['nullable', 'exists:campaigns,id'],
+            'primary_shoot_id' => ['nullable', 'exists:shoot_sessions,id'],
+            'referenced_shoot_ids' => ['nullable', 'array'],
+            'referenced_shoot_ids.*' => ['integer', 'exists:shoot_sessions,id'],
             'title' => ['required', 'string', 'max:255'],
             'type' => ['sometimes', 'required', 'string', 'in:reel,carousel,video,photo,story,post'],
             'stage' => ['sometimes', 'required', 'string', Rule::in(ContentItem::STAGES)],
@@ -83,15 +101,24 @@ class ContentApiController extends Controller
             'tasks.*.due_at' => ['nullable', 'date'],
             'tasks.*.estimate_minutes' => ['nullable', 'integer', 'min:0'],
             'tasks.*.description' => ['nullable', 'string'],
+            'auto_provision_drive' => ['nullable', 'boolean'],
         ]);
 
+        // If primary shoot specified and drive_folder_url not explicitly provided, inherit shoot's drive folder
+        if (! empty($data['primary_shoot_id']) && empty($data['drive_folder_url'])) {
+            $primaryShoot = ShootSession::query()->find($data['primary_shoot_id']);
+            if ($primaryShoot instanceof ShootSession && $primaryShoot->drive_folder_url) {
+                $data['drive_folder_url'] = $primaryShoot->drive_folder_url;
+            }
+        }
+
         $tasksData = $data['tasks'] ?? [];
-        unset($data['tasks']);
+        unset($data['tasks'], $data['auto_provision_drive']);
 
         $user = $request->user();
 
+        /** @var ContentItem $contentItem */
         $contentItem = DB::transaction(function () use ($data, $tasksData, $user) {
-            /** @var ContentItem $contentItem */
             $contentItem = ContentItem::create([
                 ...$data,
                 'owner_id' => $data['owner_id'] ?? $user->id,
@@ -121,45 +148,64 @@ class ContentApiController extends Controller
                 'metadata' => [
                     'title' => $contentItem->title,
                     'tasks_count' => count($tasksData),
+                    'primary_shoot_id' => $contentItem->primary_shoot_id,
+                    'referenced_shoots_count' => count($contentItem->referenced_shoot_ids ?? []),
                 ],
             ]);
 
             return $contentItem;
         });
 
-        $contentItem->load(['tasks', 'business:id,name,slug']);
+        // Auto-provision dedicated folder in Google Drive if content needs its own directory
+        if (empty($contentItem->drive_folder_url) && ($connection = $driveService->getActiveConnection())) {
+            $driveService->provisionContentFolder($connection, $contentItem);
+            $contentItem->refresh();
+        }
+
+        $contentItem->load([
+            'tasks',
+            'business:id,name,slug,drive_folder_url',
+            'primaryShoot:id,title,starts_at,location,drive_folder_url,broll_tags',
+        ]);
+
+        $responseData = $contentItem->toArray();
+        $responseData['referenced_shoots'] = $contentItem->referencedShoots();
 
         return response()->json([
             'status' => 'success',
             'message' => 'Content deliverable and tasks successfully planned.',
-            'data' => $contentItem,
+            'data' => $responseData,
         ], 201);
     }
 
     /**
-     * Get specific content deliverable with sub-tasks and drive links.
+     * Get specific content deliverable with sub-tasks, footage pipeline, and drive links.
      */
     public function show(Request $request, ContentItem $contentItem): JsonResponse
     {
         abort_if($contentItem->trashed(), 404, 'Content deliverable is in Recycle Bin.');
 
         $contentItem->load([
-            'business:id,name,slug,drive_folder_url',
+            'business:id,name,slug,drive_folder_url,drive_folders_map',
             'owner:id,name,avatar',
+            'primaryShoot:id,title,starts_at,location,drive_folder_url,broll_tags,footage_summary',
             'tasks' => fn ($q) => $q->orderBy('due_at'),
             'approvals',
         ]);
 
+        $responseData = $contentItem->toArray();
+        $responseData['referenced_shoots'] = $contentItem->referencedShoots();
+
         return response()->json([
             'status' => 'success',
-            'data' => $contentItem,
+            'data' => $responseData,
         ]);
     }
 
     /**
      * Update content deliverable details, advance stage, or attach Drive shot directory / asset URLs.
      */
-    public function update(Request $request, ContentItem $contentItem): JsonResponse
+    public function update(Request $request, ContentItem $contentItem, GoogleDriveService $driveService): JsonResponse
     {
         abort_if($contentItem->trashed(), 404, 'Content deliverable is in Recycle Bin.');
 
@@ -168,6 +214,9 @@ class ContentApiController extends Controller
             'type' => ['sometimes', 'required', 'string', 'in:reel,carousel,video,photo,story,post'],
             'stage' => ['sometimes', 'required', 'string', Rule::in(ContentItem::STAGES)],
             'priority' => ['sometimes', 'required', 'string', 'in:low,medium,high'],
+            'primary_shoot_id' => ['nullable', 'exists:shoot_sessions,id'],
+            'referenced_shoot_ids' => ['nullable', 'array'],
+            'referenced_shoot_ids.*' => ['integer', 'exists:shoot_sessions,id'],
             'brief' => ['nullable', 'string'],
             'hook' => ['nullable', 'string'],
             'script' => ['nullable', 'string'],
@@ -181,6 +230,14 @@ class ContentApiController extends Controller
             'publish_at' => ['nullable', 'date'],
             'owner_id' => ['nullable', 'exists:users,id'],
         ]);
+
+        // Inherit primary shoot's drive folder if provided and not explicitly set
+        if (! empty($data['primary_shoot_id']) && empty($data['drive_folder_url']) && empty($contentItem->drive_folder_url)) {
+            $primaryShoot = ShootSession::query()->find($data['primary_shoot_id']);
+            if ($primaryShoot instanceof ShootSession && $primaryShoot->drive_folder_url) {
+                $data['drive_folder_url'] = $primaryShoot->drive_folder_url;
+            }
+        }
 
         $oldStage = $contentItem->stage;
         $contentItem->update($data);
@@ -196,12 +253,19 @@ class ContentApiController extends Controller
             ],
         ]);
 
-        $contentItem->load(['tasks', 'business:id,name,slug']);
+        $contentItem->load([
+            'tasks',
+            'business:id,name,slug,drive_folder_url',
+            'primaryShoot:id,title,starts_at,location,drive_folder_url,broll_tags',
+        ]);
+
+        $responseData = $contentItem->toArray();
+        $responseData['referenced_shoots'] = $contentItem->referencedShoots();
 
         return response()->json([
             'status' => 'success',
             'message' => 'Content deliverable updated.',
-            'data' => $contentItem,
+            'data' => $responseData,
         ]);
     }
 

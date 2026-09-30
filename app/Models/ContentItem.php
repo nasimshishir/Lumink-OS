@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,6 +14,8 @@ use Illuminate\Support\Carbon;
  * @property int $business_id
  * @property int|null $campaign_id
  * @property int|null $owner_id
+ * @property int|null $primary_shoot_id
+ * @property array<int>|null $referenced_shoot_ids
  * @property string $title
  * @property string $type
  * @property string $stage
@@ -26,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $deleted_at
  * @property-read User|null $owner
  * @property-read Business|null $business
+ * @property-read ShootSession|null $primaryShoot
  */
 class ContentItem extends Model
 {
@@ -51,6 +55,7 @@ class ContentItem extends Model
     {
         return [
             'featured_items' => 'array',
+            'referenced_shoot_ids' => 'array',
             'publish_at' => 'datetime',
         ];
     }
@@ -65,6 +70,12 @@ class ContentItem extends Model
     public function campaign(): BelongsTo
     {
         return $this->belongsTo(Campaign::class);
+    }
+
+    /** @return BelongsTo<ShootSession, $this> */
+    public function primaryShoot(): BelongsTo
+    {
+        return $this->belongsTo(ShootSession::class, 'primary_shoot_id');
     }
 
     /** @return BelongsTo<User, $this> */
@@ -89,5 +100,20 @@ class ContentItem extends Model
     public function approvals(): HasMany
     {
         return $this->hasMany(ApprovalRequest::class);
+    }
+
+    /**
+     * Retrieve referenced shoot sessions.
+     *
+     * @return Collection<int, ShootSession>
+     */
+    public function referencedShoots(): Collection
+    {
+        if (empty($this->referenced_shoot_ids)) {
+            return new Collection;
+        }
+
+        return ShootSession::whereIn('id', $this->referenced_shoot_ids)
+            ->get(['id', 'title', 'starts_at', 'location', 'drive_folder_url', 'broll_tags', 'footage_summary']);
     }
 }

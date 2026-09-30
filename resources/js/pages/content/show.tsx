@@ -53,12 +53,25 @@ type Approval = {
     }[];
     token?: string;
 };
+type Shoot = {
+    id: number;
+    title: string;
+    starts_at: string;
+    location?: string | null;
+    drive_folder_url?: string | null;
+    broll_tags?: string[] | null;
+    footage_summary?: string | null;
+};
+
 type Content = {
     id: number;
     title: string;
     type: string;
     stage: string;
     priority: string;
+    primary_shoot_id?: number | null;
+    primary_shoot?: Shoot | null;
+    referenced_shoot_ids?: number[] | null;
     brief?: string;
     hook?: string;
     script?: string;
@@ -82,12 +95,16 @@ type Content = {
 export default function ContentShow({
     content,
     stages,
+    referencedShoots = [],
+    availableShoots = [],
     users = [],
     canManage = false,
     isOwner = false,
 }: {
     content: Content;
     stages: string[];
+    referencedShoots?: Shoot[];
+    availableShoots?: Shoot[];
     users?: { id: number; name: string; avatar?: string }[];
     canManage?: boolean;
     isOwner?: boolean;
@@ -365,6 +382,20 @@ export default function ContentShow({
                                                             'medium',
                                                         business_id:
                                                             content.business.id,
+                                                        content_item: {
+                                                            id: content.id,
+                                                            title: content.title,
+                                                            drive_folder_url:
+                                                                content.drive_folder_url,
+                                                            raw_footage_url:
+                                                                content.raw_footage_url,
+                                                            final_asset_url:
+                                                                content.final_asset_url,
+                                                            primary_shoot:
+                                                                content.primary_shoot,
+                                                            referenced_shoots:
+                                                                referencedShoots,
+                                                        },
                                                     }}
                                                     businesses={[
                                                         {
@@ -478,12 +509,19 @@ export default function ContentShow({
 
                     <section className="lumink-panel p-4">
                         <div className="flex items-center justify-between">
-                            <h2 className="font-semibold">
-                                Media & Google Drive
-                            </h2>
+                            <div>
+                                <h2 className="font-semibold">
+                                    Footage Bank & Media Pipeline
+                                </h2>
+                                <p className="text-xs text-muted-foreground">
+                                    Drive folders for raw footage, B-roll
+                                    archive, and final review assets
+                                </p>
+                            </div>
                             <EditContentDetailsDialog
                                 content={content}
                                 users={users}
+                                availableShoots={availableShoots}
                                 trigger={
                                     <Button
                                         variant="ghost"
@@ -495,12 +533,73 @@ export default function ContentShow({
                                 }
                             />
                         </div>
-                        <div className="mt-3 flex flex-col gap-2.5">
-                            {content.drive_folder_url && (
+                        <div className="mt-3.5 flex flex-col gap-2.5">
+                            {content.primary_shoot ? (
+                                <div className="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 p-3">
+                                    <div className="min-w-0 pr-2">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-xs font-semibold text-primary">
+                                                🎬 Primary Shoot:
+                                            </span>
+                                            <span className="truncate text-xs font-medium">
+                                                {content.primary_shoot.title}
+                                            </span>
+                                        </div>
+                                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                            {dateTime(
+                                                content.primary_shoot.starts_at,
+                                            )}
+                                            {content.primary_shoot.location &&
+                                                ` • ${content.primary_shoot.location}`}
+                                        </p>
+                                        {content.primary_shoot.broll_tags &&
+                                            content.primary_shoot.broll_tags
+                                                .length > 0 && (
+                                                <div className="mt-1.5 flex flex-wrap gap-1">
+                                                    {content.primary_shoot.broll_tags
+                                                        .slice(0, 5)
+                                                        .map((tag) => (
+                                                            <span
+                                                                key={tag}
+                                                                className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary"
+                                                            >
+                                                                #{tag}
+                                                            </span>
+                                                        ))}
+                                                </div>
+                                            )}
+                                    </div>
+                                    {content.primary_shoot.drive_folder_url ? (
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="default"
+                                            className="h-8 shrink-0 text-xs"
+                                        >
+                                            <a
+                                                href={
+                                                    content.primary_shoot
+                                                        .drive_folder_url
+                                                }
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                Open Shoot Folder
+                                                <ExternalLink data-icon="inline-end" />
+                                            </a>
+                                        </Button>
+                                    ) : (
+                                        <span className="text-[11px] text-muted-foreground italic">
+                                            No drive link
+                                        </span>
+                                    )}
+                                </div>
+                            ) : content.drive_folder_url ? (
                                 <div className="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 p-3">
                                     <div className="min-w-0 pr-2">
                                         <p className="text-xs font-semibold text-primary">
-                                            Shots Directory (Google Drive)
+                                            🎬 Dedicated Shoot Directory (Google
+                                            Drive)
                                         </p>
                                         <p className="truncate text-xs text-muted-foreground">
                                             {content.drive_folder_url}
@@ -509,8 +608,8 @@ export default function ContentShow({
                                     <Button
                                         asChild
                                         size="sm"
-                                        variant="outline"
-                                        className="h-8 shrink-0"
+                                        variant="default"
+                                        className="h-8 shrink-0 text-xs"
                                     >
                                         <a
                                             href={content.drive_folder_url}
@@ -521,6 +620,77 @@ export default function ContentShow({
                                             <ExternalLink data-icon="inline-end" />
                                         </a>
                                     </Button>
+                                </div>
+                            ) : null}
+
+                            {referencedShoots.length > 0 && (
+                                <div className="flex flex-col gap-2 rounded-md border bg-muted/20 p-3">
+                                    <p className="text-xs font-semibold text-foreground">
+                                        🗂️ Referenced B-Roll Archive Shoots
+                                    </p>
+                                    <div className="flex flex-col gap-2">
+                                        {referencedShoots.map((shoot) => (
+                                            <div
+                                                key={shoot.id}
+                                                className="flex items-center justify-between gap-2 rounded border bg-background/80 p-2 text-xs"
+                                            >
+                                                <div className="min-w-0 pr-2">
+                                                    <p className="truncate font-medium text-foreground">
+                                                        {shoot.title}
+                                                    </p>
+                                                    <p className="text-[11px] text-muted-foreground">
+                                                        {dateTime(
+                                                            shoot.starts_at,
+                                                        )}
+                                                    </p>
+                                                    {shoot.broll_tags &&
+                                                        shoot.broll_tags
+                                                            .length > 0 && (
+                                                            <div className="mt-1 flex flex-wrap gap-1">
+                                                                {shoot.broll_tags
+                                                                    .slice(0, 4)
+                                                                    .map(
+                                                                        (
+                                                                            tag,
+                                                                        ) => (
+                                                                            <span
+                                                                                key={
+                                                                                    tag
+                                                                                }
+                                                                                className="py-0.2 rounded bg-muted px-1.5 text-[10px] text-muted-foreground"
+                                                                            >
+                                                                                #
+                                                                                {
+                                                                                    tag
+                                                                                }
+                                                                            </span>
+                                                                        ),
+                                                                    )}
+                                                            </div>
+                                                        )}
+                                                </div>
+                                                {shoot.drive_folder_url && (
+                                                    <Button
+                                                        asChild
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-7 shrink-0 text-xs"
+                                                    >
+                                                        <a
+                                                            href={
+                                                                shoot.drive_folder_url
+                                                            }
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                        >
+                                                            Open B-Roll
+                                                            <ExternalLink data-icon="inline-end" />
+                                                        </a>
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
 
@@ -556,7 +726,8 @@ export default function ContentShow({
                                 <div className="flex items-center justify-between rounded-md border border-emerald-500/20 bg-emerald-500/5 p-3">
                                     <div className="min-w-0 pr-2">
                                         <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                                            Final Export Asset
+                                            Final Export Asset (Client Review
+                                            Delivery)
                                         </p>
                                         <p className="truncate text-xs text-muted-foreground">
                                             {content.final_asset_url}
@@ -611,15 +782,17 @@ export default function ContentShow({
                                 </div>
                             )}
 
-                            {!content.drive_folder_url &&
+                            {!content.primary_shoot &&
+                                !content.drive_folder_url &&
                                 !content.final_asset_url &&
-                                !content.raw_footage_url && (
+                                !content.raw_footage_url &&
+                                referencedShoots.length === 0 && (
                                     <div className="rounded-md border border-dashed p-4 text-center">
                                         <p className="text-xs text-muted-foreground">
-                                            No shot directory or export assets
-                                            connected yet. Your AI agent can
-                                            attach them automatically, or you
-                                            can add links manually.
+                                            No shoot directory or B-roll
+                                            connected yet. Link an existing
+                                            shoot or let your AI agent
+                                            auto-provision the folders.
                                         </p>
                                     </div>
                                 )}
