@@ -46,6 +46,9 @@ export function EditContentDetailsDialog({
         target_audience?: string;
         featured_items?: string[];
         shoot_notes?: string;
+        drive_folder_url?: string;
+        raw_footage_url?: string;
+        final_asset_url?: string;
     };
     users?: UserOption[];
     trigger?: React.ReactNode;
@@ -91,6 +94,9 @@ export function EditContentDetailsDialog({
             ? content.featured_items.join(', ')
             : '',
         shoot_notes: content.shoot_notes ?? '',
+        drive_folder_url: content.drive_folder_url ?? '',
+        raw_footage_url: content.raw_footage_url ?? '',
+        final_asset_url: content.final_asset_url ?? '',
     });
 
     const form = useForm(getDefaults());
@@ -430,6 +436,62 @@ export function EditContentDetailsDialog({
                                         {form.errors.featured_items}
                                     </p>
                                 )}
+                            </div>
+
+                            <div className="grid gap-2 border-t pt-3">
+                                <Label htmlFor="drive_folder_url">
+                                    Google Drive shots directory
+                                </Label>
+                                <Input
+                                    id="drive_folder_url"
+                                    placeholder="https://drive.google.com/drive/folders/..."
+                                    value={form.data.drive_folder_url}
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'drive_folder_url',
+                                            e.target.value,
+                                        )
+                                    }
+                                />
+                                {form.errors.drive_folder_url && (
+                                    <p className="text-sm text-red-500">
+                                        {form.errors.drive_folder_url}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="raw_footage_url">
+                                    Raw footage / assets link
+                                </Label>
+                                <Input
+                                    id="raw_footage_url"
+                                    placeholder="https://..."
+                                    value={form.data.raw_footage_url}
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'raw_footage_url',
+                                            e.target.value,
+                                        )
+                                    }
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="final_asset_url">
+                                    Final export asset URL
+                                </Label>
+                                <Input
+                                    id="final_asset_url"
+                                    placeholder="https://..."
+                                    value={form.data.final_asset_url}
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'final_asset_url',
+                                            e.target.value,
+                                        )
+                                    }
+                                />
                             </div>
                         </div>
                     </div>

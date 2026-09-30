@@ -7,7 +7,6 @@ import {
     Link2,
     Play,
     Timer,
-    Video,
 } from 'lucide-react';
 import { useState } from 'react';
 import { AddTaskDialog } from '@/components/add-task-dialog';
@@ -67,6 +66,9 @@ type Content = {
     target_audience?: string;
     featured_items?: string[];
     shoot_notes?: string;
+    drive_folder_url?: string;
+    raw_footage_url?: string;
+    final_asset_url?: string;
     publish_at?: string;
     revision_number: number;
     business: { id: number; name: string; drive_folder_url?: string };
@@ -476,41 +478,151 @@ export default function ContentShow({
 
                     <section className="lumink-panel p-4">
                         <div className="flex items-center justify-between">
-                            <h2 className="font-semibold">Assets</h2>
-                            {content.business.drive_folder_url && (
-                                <Button asChild variant="ghost" size="sm">
-                                    <a
-                                        href={content.business.drive_folder_url}
-                                        target="_blank"
-                                        rel="noreferrer"
+                            <h2 className="font-semibold">
+                                Media & Google Drive
+                            </h2>
+                            <EditContentDetailsDialog
+                                content={content}
+                                users={users}
+                                trigger={
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 text-xs"
                                     >
-                                        Open Drive
-                                        <ExternalLink data-icon="inline-end" />
-                                    </a>
-                                </Button>
-                            )}
+                                        Edit Links
+                                    </Button>
+                                }
+                            />
                         </div>
-                        <div className="mt-3 flex flex-col gap-2">
-                            {[
-                                'Footage – Eid Offer Reel',
-                                'Audio – Background music',
-                                'Graphics & logo',
-                            ].map((asset) => (
-                                <div
-                                    key={asset}
-                                    className="flex items-center gap-3 rounded-md border p-3"
-                                >
-                                    <Video className="size-4 text-primary" />
-                                    <div>
-                                        <p className="text-sm font-medium">
-                                            {asset}
+                        <div className="mt-3 flex flex-col gap-2.5">
+                            {content.drive_folder_url && (
+                                <div className="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 p-3">
+                                    <div className="min-w-0 pr-2">
+                                        <p className="text-xs font-semibold text-primary">
+                                            Shots Directory (Google Drive)
                                         </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Google Drive metadata
+                                        <p className="truncate text-xs text-muted-foreground">
+                                            {content.drive_folder_url}
                                         </p>
                                     </div>
+                                    <Button
+                                        asChild
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 shrink-0"
+                                    >
+                                        <a
+                                            href={content.drive_folder_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            Open Shots
+                                            <ExternalLink data-icon="inline-end" />
+                                        </a>
+                                    </Button>
                                 </div>
-                            ))}
+                            )}
+
+                            {content.raw_footage_url && (
+                                <div className="flex items-center justify-between rounded-md border p-3">
+                                    <div className="min-w-0 pr-2">
+                                        <p className="text-xs font-semibold">
+                                            Raw Footage Link
+                                        </p>
+                                        <p className="truncate text-xs text-muted-foreground">
+                                            {content.raw_footage_url}
+                                        </p>
+                                    </div>
+                                    <Button
+                                        asChild
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 shrink-0"
+                                    >
+                                        <a
+                                            href={content.raw_footage_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            Open
+                                            <ExternalLink data-icon="inline-end" />
+                                        </a>
+                                    </Button>
+                                </div>
+                            )}
+
+                            {content.final_asset_url && (
+                                <div className="flex items-center justify-between rounded-md border border-emerald-500/20 bg-emerald-500/5 p-3">
+                                    <div className="min-w-0 pr-2">
+                                        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                                            Final Export Asset
+                                        </p>
+                                        <p className="truncate text-xs text-muted-foreground">
+                                            {content.final_asset_url}
+                                        </p>
+                                    </div>
+                                    <Button
+                                        asChild
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 shrink-0"
+                                    >
+                                        <a
+                                            href={content.final_asset_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            View Asset
+                                            <ExternalLink data-icon="inline-end" />
+                                        </a>
+                                    </Button>
+                                </div>
+                            )}
+
+                            {content.business.drive_folder_url && (
+                                <div className="flex items-center justify-between rounded-md border p-3">
+                                    <div className="min-w-0 pr-2">
+                                        <p className="text-xs font-medium">
+                                            Client Workspace Drive
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {content.business.name} Root Folder
+                                        </p>
+                                    </div>
+                                    <Button
+                                        asChild
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 shrink-0"
+                                    >
+                                        <a
+                                            href={
+                                                content.business
+                                                    .drive_folder_url
+                                            }
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            Open
+                                            <ExternalLink data-icon="inline-end" />
+                                        </a>
+                                    </Button>
+                                </div>
+                            )}
+
+                            {!content.drive_folder_url &&
+                                !content.final_asset_url &&
+                                !content.raw_footage_url && (
+                                    <div className="rounded-md border border-dashed p-4 text-center">
+                                        <p className="text-xs text-muted-foreground">
+                                            No shot directory or export assets
+                                            connected yet. Your AI agent can
+                                            attach them automatically, or you
+                                            can add links manually.
+                                        </p>
+                                    </div>
+                                )}
                         </div>
                     </section>
 

@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $owner_id
  * @property string $title
  * @property string|null $location
+ * @property string|null $drive_folder_url
  * @property Carbon $starts_at
  * @property Carbon|null $ends_at
  * @property string $status

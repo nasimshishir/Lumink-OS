@@ -82,6 +82,9 @@ class ContentController extends Controller
             'target_audience' => ['sometimes', 'nullable', 'string'],
             'featured_items' => ['sometimes', 'nullable', 'string'],
             'shoot_notes' => ['sometimes', 'nullable', 'string'],
+            'drive_folder_url' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'raw_footage_url' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'final_asset_url' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ]);
 
         if (isset($data['featured_items'])) {

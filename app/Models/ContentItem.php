@@ -18,6 +18,9 @@ use Illuminate\Support\Carbon;
  * @property string $stage
  * @property string $priority
  * @property string|null $brief
+ * @property string|null $drive_folder_url
+ * @property string|null $raw_footage_url
+ * @property string|null $final_asset_url
  * @property Carbon|null $publish_at
  * @property int $revision_number
  * @property Carbon|null $deleted_at

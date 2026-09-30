@@ -16,6 +16,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\RecycleBinController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\Settings\ApiTokenController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TeamMemberController;
 use App\Models\Business;
@@ -122,11 +123,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings/integrations', fn () => Inertia::render('settings/integrations', [
             'driveConnection' => DriveConnection::where('user_id', request()->user()->id)->first(),
             'businesses' => Business::orderBy('name')->get(['id', 'name', 'drive_folder_url']),
+            'apiTokens' => request()->user()->tokens()->orderBy('created_at', 'desc')->get(['id', 'name', 'abilities', 'last_used_at', 'created_at', 'expires_at']),
+            'newApiToken' => session('newApiToken'),
         ]))->name('integrations.index');
         Route::get('/settings/integrations/google-drive', [DriveConnectionController::class, 'redirect'])->name('drive.redirect');
         Route::get('/settings/integrations/google-drive/callback', [DriveConnectionController::class, 'callback'])->name('drive.callback');
         Route::delete('/settings/integrations/google-drive', [DriveConnectionController::class, 'destroy'])->name('drive.destroy');
         Route::post('/businesses/{business}/drive', [DriveConnectionController::class, 'provision'])->name('drive.provision');
+
+        Route::post('/settings/api-tokens', [ApiTokenController::class, 'store'])->name('api-tokens.store');
+        Route::delete('/settings/api-tokens/{id}', [ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
     });
 });
 
