@@ -35,7 +35,8 @@ class InvitationController extends Controller
         try {
             Mail::to($invitation->email)->send(new TeamInvitationMail($invitation));
         } catch (\Exception $e) {
-            Log::error('Failed to send invitation email: ' . $e->getMessage());
+            Log::error('Failed to send invitation email: '.$e->getMessage());
+
             return back()->with('error', 'Access authorized, but we could not send the invitation email. Please notify them manually.');
         }
 
@@ -60,7 +61,8 @@ class InvitationController extends Controller
         try {
             Mail::to($invitation->email)->send(new TeamInvitationMail($invitation));
         } catch (\Exception $e) {
-            Log::error('Failed to resend invitation email: ' . $e->getMessage());
+            Log::error('Failed to resend invitation email: '.$e->getMessage());
+
             return back()->with('error', 'Invitation refreshed, but email could not be dispatched.');
         }
 
@@ -85,4 +87,3 @@ class InvitationController extends Controller
         return back()->with('success', "Invitation for {$email} has been revoked.");
     }
 }
-

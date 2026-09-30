@@ -85,7 +85,7 @@ class AgencyOperationsTest extends TestCase
 
     public function test_owner_can_invite_a_google_account_with_a_role(): void
     {
-        \Illuminate\Support\Facades\Mail::fake();
+        Mail::fake();
 
         $owner = User::factory()->create(['role' => 'owner']);
 
@@ -93,22 +93,22 @@ class AgencyOperationsTest extends TestCase
             'email' => 'editor@example.com',
             'role' => 'specialist',
         ])->assertSessionHas('success', 'Access authorized and invitation email sent.')
-          ->assertRedirect();
+            ->assertRedirect();
 
         $this->assertDatabaseHas('invitations', [
             'email' => 'editor@example.com',
             'role' => 'specialist',
         ]);
 
-        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\TeamInvitationMail::class, function ($mail) {
+        Mail::assertSent(TeamInvitationMail::class, function ($mail) {
             return $mail->hasTo('editor@example.com') && $mail->invitation->role === 'specialist';
         });
     }
 
     public function test_invitation_creation_survives_mail_transport_failure(): void
     {
-        \Illuminate\Support\Facades\Mail::shouldReceive('to')->andThrow(new \Exception('Mail gun broke'));
-        \Illuminate\Support\Facades\Log::shouldReceive('error')->once();
+        Mail::shouldReceive('to')->andThrow(new \Exception('Mail gun broke'));
+        Log::shouldReceive('error')->once();
 
         $owner = User::factory()->create(['role' => 'owner']);
 
@@ -116,7 +116,7 @@ class AgencyOperationsTest extends TestCase
             'email' => 'broken@example.com',
             'role' => 'manager',
         ])->assertSessionHas('error', 'Access authorized, but we could not send the invitation email. Please notify them manually.')
-          ->assertRedirect();
+            ->assertRedirect();
 
         $this->assertDatabaseHas('invitations', [
             'email' => 'broken@example.com',
@@ -296,5 +296,158 @@ class AgencyOperationsTest extends TestCase
                 ->where('users.0.name', 'Active Alice')
             );
     }
-}
 
+    public function test_owner_can_deactivate_and_reactivate_a_business(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $business = Business::create([
+            'name' => 'Sunset Cafe',
+            'slug' => 'sunset-cafe',
+            'status' => 'active',
+            'monthly_retainer' => 30000,
+        ]);
+
+        $this->actingAs($owner)
+            ->patch("/businesses/{$business->id}/toggle-status")
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Sunset Cafe has been deactivated.');
+
+        $this->assertEquals('inactive', $business->fresh()->status);
+        $this->assertDatabaseHas('audit_events', [
+            'user_id' => $owner->id,
+            'event' => 'business.inactive',
+            'auditable_id' => $business->id,
+        ]);
+
+        $this->actingAs($owner)
+            ->patch("/businesses/{$business->id}/toggle-status")
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Sunset Cafe has been reactivated.');
+
+        $this->assertEquals('active', $business->fresh()->status);
+        $this->assertDatabaseHas('audit_events', [
+            'user_id' => $owner->id,
+            'event' => 'business.active',
+            'auditable_id' => $business->id,
+        ]);
+    }
+
+    public function test_owner_can_soft_delete_business_to_recycle_bin(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $business = Business::create([
+            'name' => 'Metro Diner',
+            'slug' => 'metro-diner',
+            'status' => 'active',
+            'monthly_retainer' => 20000,
+        ]);
+
+        $this->actingAs($owner)
+            ->delete("/businesses/{$business->id}")
+            ->assertRedirect('/businesses')
+            ->assertSessionHas('success', 'Metro Diner moved to the Recycle Bin.');
+
+        $this->assertSoftDeleted('businesses', ['id' => $business->id]);
+        $this->assertDatabaseHas('audit_events', [
+            'user_id' => $owner->id,
+            'event' => 'business.trashed',
+            'auditable_id' => $business->id,
+        ]);
+    }
+
+    public function test_owner_can_restore_business_from_recycle_bin(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $business = Business::create([
+            'name' => 'Old Bakery',
+            'slug' => 'old-bakery',
+            'status' => 'active',
+            'monthly_retainer' => 15000,
+        ]);
+        $business->delete();
+
+        $this->assertTrue($business->fresh()->trashed());
+
+        $this->actingAs($owner)
+            ->post("/businesses/{$business->id}/restore")
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Old Bakery has been restored from the Recycle Bin.');
+
+        $this->assertFalse($business->fresh()->trashed());
+        $this->assertDatabaseHas('audit_events', [
+            'user_id' => $owner->id,
+            'event' => 'business.restored',
+            'auditable_id' => $business->id,
+        ]);
+    }
+
+    public function test_owner_can_permanently_force_delete_business(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $business = Business::create([
+            'name' => 'Disposable Enterprise',
+            'slug' => 'disposable-enterprise',
+            'status' => 'active',
+            'monthly_retainer' => 10000,
+        ]);
+        $business->delete();
+
+        $this->actingAs($owner)
+            ->delete("/businesses/{$business->id}/force-delete")
+            ->assertRedirect('/businesses')
+            ->assertSessionHas('success', 'Disposable Enterprise has been permanently deleted.');
+
+        $this->assertDatabaseMissing('businesses', ['id' => $business->id]);
+        $this->assertDatabaseHas('audit_events', [
+            'user_id' => $owner->id,
+            'event' => 'business.force_deleted',
+            'auditable_id' => $business->id,
+        ]);
+    }
+
+    public function test_owner_can_empty_the_recycle_bin(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $b1 = Business::create(['name' => 'Trash 1', 'slug' => 'trash-1', 'monthly_retainer' => 5000]);
+        $b2 = Business::create(['name' => 'Trash 2', 'slug' => 'trash-2', 'monthly_retainer' => 5000]);
+        $b1->delete();
+        $b2->delete();
+
+        $this->assertEquals(2, Business::onlyTrashed()->count());
+
+        $this->actingAs($owner)
+            ->delete('/businesses/trash/empty')
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Recycle Bin has been emptied (2 businesses permanently deleted).');
+
+        $this->assertEquals(0, Business::onlyTrashed()->count());
+    }
+
+    public function test_specialist_cannot_manage_business_status_or_deletion(): void
+    {
+        $specialist = User::factory()->create(['role' => 'specialist']);
+        $business = Business::create([
+            'name' => 'Protected Co',
+            'slug' => 'protected-co',
+            'monthly_retainer' => 12000,
+        ]);
+
+        $this->actingAs($specialist)
+            ->patch("/businesses/{$business->id}/toggle-status")
+            ->assertForbidden();
+
+        $this->actingAs($specialist)
+            ->delete("/businesses/{$business->id}")
+            ->assertForbidden();
+
+        $business->delete();
+
+        $this->actingAs($specialist)
+            ->post("/businesses/{$business->id}/restore")
+            ->assertForbidden();
+
+        $this->actingAs($specialist)
+            ->delete("/businesses/{$business->id}/force-delete")
+            ->assertForbidden();
+    }
+}

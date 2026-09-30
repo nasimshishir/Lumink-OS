@@ -52,7 +52,11 @@ Route::middleware('auth')->group(function () {
             ->get(),
     ]))->name('work.index');
 
-    Route::resource('businesses', BusinessController::class)->only(['index', 'store', 'show']);
+    Route::patch('/businesses/{business}/toggle-status', [BusinessController::class, 'toggleStatus'])->name('businesses.toggle-status');
+    Route::delete('/businesses/trash/empty', [BusinessController::class, 'emptyTrash'])->name('businesses.trash.empty');
+    Route::post('/businesses/{id}/restore', [BusinessController::class, 'restore'])->name('businesses.restore');
+    Route::delete('/businesses/{id}/force-delete', [BusinessController::class, 'forceDelete'])->name('businesses.force-delete');
+    Route::resource('businesses', BusinessController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
     Route::get('/content', [ContentController::class, 'index'])->name('content.index');
     Route::post('/content', [ContentController::class, 'store'])->name('content.store');
     Route::get('/content/{contentItem}', [ContentController::class, 'show'])->name('content.show');

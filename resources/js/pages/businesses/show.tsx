@@ -1,10 +1,27 @@
-import { Head, Link } from '@inertiajs/react';
-import { CalendarDays, ExternalLink, Target, ArrowRight } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import {
+    AlertTriangle,
+    ArrowRight,
+    CalendarDays,
+    ExternalLink,
+    Power,
+    PowerOff,
+    Target,
+    Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import { AddContentDialog } from '@/components/add-content-dialog';
 import { AddTaskDialog } from '@/components/add-task-dialog';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { dateTime, humanize, money, shortDate } from '@/lib/format';
 
 type Campaign = {
@@ -62,10 +79,14 @@ type Business = {
 export default function BusinessShow({
     business,
     users = [],
+    canManage = true,
+    isOwner = true,
     profitability,
 }: {
     business: Business;
     users?: { id: number; name: string }[];
+    canManage?: boolean;
+    isOwner?: boolean;
     profitability: {
         directExpenses: number;
         trackedMinutes: number;
@@ -73,6 +94,10 @@ export default function BusinessShow({
     };
 }) {
     const [activeTab, setActiveTab] = useState('Overview');
+    const [trashOpen, setTrashOpen] = useState(false);
+    const [forceDeleteOpen, setForceDeleteOpen] = useState(false);
+    const [actionInProgress, setActionInProgress] = useState(false);
+
     const targets = business.deliverable_targets ?? {};
     const delivered = {
         reels: business.content_items.filter((item) => item.type === 'reel')
@@ -82,6 +107,32 @@ export default function BusinessShow({
         static: business.content_items.filter((item) => item.type === 'static')
             .length,
     };
+
+    function handleToggleStatus() {
+        setActionInProgress(true);
+        router.patch(
+            `/businesses/${business.id}/toggle-status`,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setActionInProgress(false),
+            },
+        );
+    }
+
+    function confirmMoveToTrash() {
+        setActionInProgress(true);
+        router.delete(`/businesses/${business.id}`, {
+            onFinish: () => setActionInProgress(false),
+        });
+    }
+
+    function confirmForceDelete() {
+        setActionInProgress(true);
+        router.delete(`/businesses/${business.id}/force-delete`, {
+            onFinish: () => setActionInProgress(false),
+        });
+    }
 
     return (
         <>
@@ -144,6 +195,55 @@ export default function BusinessShow({
                         )}
                         <AddContentDialog businessId={business.id} />
                         <AddTaskDialog businessId={business.id} users={users} />
+
+                        {canManage && (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    disabled={actionInProgress}
+                                    onClick={handleToggleStatus}
+                                    className={
+                                        business.status === 'active'
+                                            ? 'text-muted-foreground hover:text-amber-600'
+                                            : 'text-emerald-600 hover:text-emerald-700'
+                                    }
+                                >
+                                    {business.status === 'active' ? (
+                                        <>
+                                            <PowerOff className="size-4" />
+                                            Deactivate
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Power className="size-4" />
+                                            Activate
+                                        </>
+                                    )}
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    disabled={actionInProgress}
+                                    onClick={() => setTrashOpen(true)}
+                                    className="text-muted-foreground hover:border-destructive hover:text-destructive"
+                                    title="Move to Recycle Bin"
+                                >
+                                    <Trash2 className="size-4" />
+                                    Move to Trash
+                                </Button>
+                                {isOwner && (
+                                    <Button
+                                        variant="outline"
+                                        disabled={actionInProgress}
+                                        onClick={() => setForceDeleteOpen(true)}
+                                        className="text-muted-foreground hover:border-destructive hover:text-destructive"
+                                        title="Permanently delete workspace"
+                                    >
+                                        <Trash2 className="size-4" />
+                                        Delete permanently
+                                    </Button>
+                                )}
+                            </>
+                        )}
                     </div>
                 </div>
                 <nav className="mt-6 flex gap-6 overflow-x-auto text-sm font-medium">
@@ -526,6 +626,82 @@ export default function BusinessShow({
                     </section>
                 </main>
             )}
+
+            {/* Move to Trash Confirmation Dialog */}
+            <Dialog open={trashOpen} onOpenChange={setTrashOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            Move workspace to Recycle Bin?
+                        </DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to move{' '}
+                            <strong>{business.name}</strong> to the Recycle Bin?
+                            <br />
+                            <br />
+                            The workspace will be deactivated and hidden from
+                            daily operations, active task queues, and revenue
+                            reports. All campaigns, tasks, and data remain
+                            intact and can be restored at any time.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setTrashOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={confirmMoveToTrash}
+                            disabled={actionInProgress}
+                        >
+                            Move to Recycle Bin
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Permanent Force Delete Confirmation Dialog */}
+            <Dialog open={forceDeleteOpen} onOpenChange={setForceDeleteOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <AlertTriangle className="size-5" />
+                            Permanently delete workspace?
+                        </DialogTitle>
+                        <DialogDescription className="space-y-2">
+                            <p>
+                                Are you sure you want to completely delete{' '}
+                                <strong>{business.name}</strong>?
+                            </p>
+                            <p className="rounded-md bg-destructive/10 p-3 text-xs font-medium text-destructive">
+                                <strong>WARNING:</strong> This action cannot be
+                                undone. This will permanently erase the business
+                                workspace and all associated campaigns, content
+                                items, tasks, invoice records, and performance
+                                reports.
+                            </p>
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setForceDeleteOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={confirmForceDelete}
+                            disabled={actionInProgress}
+                        >
+                            Permanently delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

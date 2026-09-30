@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -11,9 +13,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $slug
  * @property string $status
  * @property string $monthly_retainer
+ * @property Carbon|null $deleted_at
  */
 class Business extends Model
 {
+    use SoftDeletes;
+
     protected $guarded = [];
 
     protected function casts(): array
