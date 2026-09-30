@@ -67,6 +67,35 @@ class RolePermissionTest extends TestCase
         $this->assertFalse($role->hasPermissionTo('finance.view'));
     }
 
+    public function test_owner_can_create_custom_role_with_spaces_and_display_name(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+
+        $this->actingAs($owner)
+            ->post('/roles', [
+                'name' => 'Video Editor',
+                'permissions' => ['content.view'],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', "Role 'video_editor' has been created.");
+
+        $this->assertDatabaseHas('roles', ['name' => 'video_editor']);
+    }
+
+    public function test_create_custom_role_rejects_invalid_characters_with_custom_message(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+
+        $this->actingAs($owner)
+            ->post('/roles', [
+                'name' => 'Invalid@Role!',
+                'permissions' => [],
+            ])
+            ->assertSessionHasErrors([
+                'name' => 'The role name may only contain letters, numbers, spaces, and underscores.',
+            ]);
+    }
+
     public function test_owner_can_update_role_permissions(): void
     {
         $owner = User::factory()->create(['role' => 'owner']);

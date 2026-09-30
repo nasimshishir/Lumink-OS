@@ -101,7 +101,7 @@ export default function RolesAndPermissions({
     function openEditRole(role: RoleItem) {
         setRoleToEdit(role);
         editForm.setData({
-            name: role.name,
+            name: role.name.replaceAll('_', ' '),
             permissions: role.permissions.map((p) => p.name),
         });
     }
@@ -669,18 +669,20 @@ export default function RolesAndPermissions({
                         className="flex flex-1 flex-col gap-4 overflow-hidden"
                     >
                         <div className="shrink-0 space-y-1.5">
-                            <Label htmlFor="role-name">
-                                Role Name (Identifier)
-                            </Label>
+                            <Label htmlFor="role-name">Role Name</Label>
                             <Input
                                 id="role-name"
-                                placeholder="e.g. video_editor, client_manager"
+                                placeholder="e.g. Video Editor, Account Manager"
                                 required
                                 value={createForm.data.name}
                                 onChange={(e) =>
                                     createForm.setData('name', e.target.value)
                                 }
                             />
+                            <p className="text-[11px] text-muted-foreground">
+                                Enter a descriptive name like "Content Creator"
+                                or "Video Editor".
+                            </p>
                             {createForm.errors.name && (
                                 <p className="text-xs text-destructive">
                                     {createForm.errors.name}
@@ -852,6 +854,11 @@ export default function RolesAndPermissions({
                                             )
                                         }
                                     />
+                                    {editForm.errors.name && (
+                                        <p className="text-xs text-destructive">
+                                            {editForm.errors.name}
+                                        </p>
+                                    )}
                                 </div>
                             )}
 

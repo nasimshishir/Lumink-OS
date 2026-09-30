@@ -92,6 +92,17 @@ class RolePermissionController extends Controller
         ]);
     }
 
+    protected function normalizeRoleName(?string $name): ?string
+    {
+        if ($name === null) {
+            return null;
+        }
+
+        $cleaned = trim(preg_replace('/[\s\-]+/', '_', $name));
+
+        return strtolower($cleaned);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         abort_unless(
@@ -99,13 +110,30 @@ class RolePermissionController extends Controller
             403
         );
 
+        if ($request->has('name')) {
+            $request->merge(['name' => $this->normalizeRoleName((string) $request->input('name'))]);
+        }
+
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9_\-]+$/', 'unique:roles,name'],
+            'name' => [
+                'required',
+                'string',
+                'min:2',
+                'max:50',
+                'regex:/^[a-z0-9_]+$/',
+                'unique:roles,name',
+            ],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', 'exists:permissions,name'],
+        ], [
+            'name.required' => 'The role name is required.',
+            'name.min' => 'The role name must be at least 2 characters.',
+            'name.max' => 'The role name may not be greater than 50 characters.',
+            'name.regex' => 'The role name may only contain letters, numbers, spaces, and underscores.',
+            'name.unique' => 'A role with this name already exists.',
         ]);
 
-        $roleName = strtolower($data['name']);
+        $roleName = $data['name'];
         $role = Role::create(['name' => $roleName, 'guard_name' => 'web']);
 
         if (! empty($data['permissions'])) {
@@ -133,15 +161,38 @@ class RolePermissionController extends Controller
             403
         );
 
+        if ($request->has('name')) {
+            $request->merge(['name' => $this->normalizeRoleName((string) $request->input('name'))]);
+        }
+
         $data = $request->validate([
-            'name' => ['sometimes', 'required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9_\-]+$/', 'unique:roles,name,'.$role->id],
+            'name' => [
+                'sometimes',
+                'required',
+                'string',
+                'min:2',
+                'max:50',
+                'regex:/^[a-z0-9_]+$/',
+                'unique:roles,name,'.$role->id,
+            ],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', 'exists:permissions,name'],
+        ], [
+            'name.required' => 'The role name is required.',
+            'name.min' => 'The role name must be at least 2 characters.',
+            'name.max' => 'The role name may not be greater than 50 characters.',
+            'name.regex' => 'The role name may only contain letters, numbers, spaces, and underscores.',
+            'name.unique' => 'A role with this name already exists.',
         ]);
 
         if (isset($data['name']) && ! in_array($role->name, self::SYSTEM_ROLES, true)) {
-            $role->name = strtolower($data['name']);
+            $oldName = $role->name;
+            $role->name = $data['name'];
             $role->save();
+
+            if ($oldName !== $role->name) {
+                User::where('role', $oldName)->update(['role' => $role->name]);
+            }
         }
 
         if ($role->name === 'owner') {
