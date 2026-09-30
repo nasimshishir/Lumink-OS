@@ -75,10 +75,18 @@ export default function ApprovalShow({ approval }: { approval: Approval }) {
                                 <ContentMediaPreview
                                     title={approval.content_item.title}
                                     type={approval.content_item.type}
-                                    thumbnailUrl={approval.content_item.thumbnail_url}
-                                    finalAssetUrl={approval.content_item.final_asset_url}
-                                    driveFolderUrl={approval.content_item.drive_folder_url}
-                                    rawFootageUrl={approval.content_item.raw_footage_url}
+                                    thumbnailUrl={
+                                        approval.content_item.thumbnail_url
+                                    }
+                                    finalAssetUrl={
+                                        approval.content_item.final_asset_url
+                                    }
+                                    driveFolderUrl={
+                                        approval.content_item.drive_folder_url
+                                    }
+                                    rawFootageUrl={
+                                        approval.content_item.raw_footage_url
+                                    }
                                     hook={approval.content_item.hook}
                                     className="rounded-lg shadow-sm"
                                 />
@@ -102,8 +110,10 @@ export default function ApprovalShow({ approval }: { approval: Approval }) {
                                 )}
                                 {approval.content_item.script && (
                                     <div>
-                                        <p className="lumink-label">Script / Caption</p>
-                                        <p className="mt-1 whitespace-pre-line text-sm">
+                                        <p className="lumink-label">
+                                            Script / Caption
+                                        </p>
+                                        <p className="mt-1 text-sm whitespace-pre-line">
                                             {approval.content_item.script}
                                         </p>
                                     </div>

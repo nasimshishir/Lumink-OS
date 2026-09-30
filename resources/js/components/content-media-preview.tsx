@@ -1,6 +1,11 @@
-import { Clapperboard, ExternalLink, Film, FolderOpen, Image as ImageIcon, Play, Video } from 'lucide-react';
+import {
+    Clapperboard,
+    ExternalLink,
+    Film,
+    FolderOpen,
+    Image as ImageIcon,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
 
 export interface ContentMediaPreviewProps {
     title: string;
@@ -22,11 +27,13 @@ function getGoogleDriveEmbedUrl(url: string): string | null {
     }
 
     const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+
     if (fileMatch) {
         return `https://drive.google.com/file/d/${fileMatch[1]}/preview`;
     }
 
     const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+
     if (idMatch) {
         return `https://drive.google.com/file/d/${idMatch[1]}/preview`;
     }
@@ -42,6 +49,7 @@ function getYouTubeEmbedUrl(url: string): string | null {
     const match = url.match(
         /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]+)/,
     );
+
     return match
         ? `https://www.youtube-nocookie.com/embed/${match[1]}?autoplay=0&rel=0`
         : null;
@@ -53,11 +61,13 @@ function getVimeoEmbedUrl(url: string): string | null {
     }
 
     const match = url.match(/vimeo\.com\/(?:video\/)?([0-9]+)/);
+
     return match ? `https://player.vimeo.com/video/${match[1]}` : null;
 }
 
 function isVideoUrl(url: string): boolean {
     const cleanUrl = url.split('?')[0].toLowerCase();
+
     return ['.mp4', '.mov', '.webm', '.ogg', '.m4v'].some((ext) =>
         cleanUrl.endsWith(ext),
     );
@@ -65,15 +75,10 @@ function isVideoUrl(url: string): boolean {
 
 function isImageUrl(url: string): boolean {
     const cleanUrl = url.split('?')[0].toLowerCase();
-    return [
-        '.png',
-        '.jpg',
-        '.jpeg',
-        '.webp',
-        '.svg',
-        '.gif',
-        '.avif',
-    ].some((ext) => cleanUrl.endsWith(ext));
+
+    return ['.png', '.jpg', '.jpeg', '.webp', '.svg', '.gif', '.avif'].some(
+        (ext) => cleanUrl.endsWith(ext),
+    );
 }
 
 export function ContentMediaPreview({
@@ -90,6 +95,7 @@ export function ContentMediaPreview({
     // 1. Final Asset Embeds (Drive, YouTube, Vimeo)
     if (finalAssetUrl) {
         const driveEmbed = getGoogleDriveEmbedUrl(finalAssetUrl);
+
         if (driveEmbed) {
             return (
                 <div
@@ -106,7 +112,7 @@ export function ContentMediaPreview({
                         href={finalAssetUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1 text-[11px] font-medium text-white backdrop-blur hover:bg-black"
+                        className="absolute right-2 bottom-2 flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1 text-[11px] font-medium text-white backdrop-blur hover:bg-black"
                     >
                         <ExternalLink className="size-3" />
                         <span>Open Drive</span>
@@ -116,6 +122,7 @@ export function ContentMediaPreview({
         }
 
         const ytEmbed = getYouTubeEmbedUrl(finalAssetUrl);
+
         if (ytEmbed) {
             return (
                 <div
@@ -133,6 +140,7 @@ export function ContentMediaPreview({
         }
 
         const vimeoEmbed = getVimeoEmbedUrl(finalAssetUrl);
+
         if (vimeoEmbed) {
             return (
                 <div
@@ -181,7 +189,7 @@ export function ContentMediaPreview({
                         className="h-full w-full object-cover"
                     />
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 text-white">
-                        <span className="rounded bg-primary/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground">
+                        <span className="rounded bg-primary/90 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-primary-foreground uppercase">
                             {type}
                         </span>
                         <p className="mt-1 line-clamp-2 text-xs font-medium text-white/90">
@@ -205,7 +213,7 @@ export function ContentMediaPreview({
                     className="h-full w-full object-cover"
                 />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-4 text-white">
-                    <span className="rounded bg-primary/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground">
+                    <span className="rounded bg-primary/90 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-primary-foreground uppercase">
                         {type}
                     </span>
                     <p className="mt-1 line-clamp-2 text-xs font-medium text-white/90">
@@ -235,7 +243,7 @@ export function ContentMediaPreview({
             className={`relative mx-auto flex aspect-[9/16] max-h-[520px] w-full flex-col justify-between overflow-hidden rounded-md border border-neutral-800 bg-neutral-950 p-5 text-white shadow-inner ${className}`}
         >
             <div className="flex items-center justify-between">
-                <span className="rounded bg-primary/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
+                <span className="rounded bg-primary/80 px-2.5 py-1 text-[10px] font-bold tracking-wider text-primary-foreground uppercase">
                     {type}
                 </span>
                 <span className="flex items-center gap-1 text-[11px] text-neutral-400">
@@ -245,18 +253,18 @@ export function ContentMediaPreview({
             </div>
 
             <div className="my-auto flex flex-col items-center px-2 text-center">
-                <div className="flex size-14 items-center justify-center rounded-2xl bg-neutral-900 border border-neutral-800 text-neutral-400 shadow-md">
+                <div className="flex size-14 items-center justify-center rounded-2xl border border-neutral-800 bg-neutral-900 text-neutral-400 shadow-md">
                     {type === 'static' || type === 'carousel' ? (
                         <ImageIcon className="size-6 text-primary/80" />
                     ) : (
                         <Film className="size-6 text-primary/80" />
                     )}
                 </div>
-                <h3 className="mt-4 line-clamp-3 text-sm font-semibold leading-snug text-neutral-100">
+                <h3 className="mt-4 line-clamp-3 text-sm leading-snug font-semibold text-neutral-100">
                     {title}
                 </h3>
                 {hook ? (
-                    <p className="mt-2 line-clamp-3 text-xs italic text-neutral-400">
+                    <p className="mt-2 line-clamp-3 text-xs text-neutral-400 italic">
                         &ldquo;{hook}&rdquo;
                     </p>
                 ) : (
