@@ -92,31 +92,35 @@ class RecycleBinController extends Controller
                     ->latest()
                     ->first();
 
-                $metadata = $lastTrashedEvent?->metadata ?? [];
-                $taskIds = $metadata['cascaded_tasks'] ?? null;
-                $contentIds = $metadata['cascaded_content'] ?? null;
-                $invoiceIds = $metadata['cascaded_invoices'] ?? null;
-                $expenseIds = $metadata['cascaded_expenses'] ?? null;
+                $metadata = ($lastTrashedEvent && is_array($lastTrashedEvent->metadata)) ? $lastTrashedEvent->metadata : [];
+                /** @var list<int>|null $taskIds */
+                $taskIds = isset($metadata['cascaded_tasks']) && is_array($metadata['cascaded_tasks']) ? $metadata['cascaded_tasks'] : null;
+                /** @var list<int>|null $contentIds */
+                $contentIds = isset($metadata['cascaded_content']) && is_array($metadata['cascaded_content']) ? $metadata['cascaded_content'] : null;
+                /** @var list<int>|null $invoiceIds */
+                $invoiceIds = isset($metadata['cascaded_invoices']) && is_array($metadata['cascaded_invoices']) ? $metadata['cascaded_invoices'] : null;
+                /** @var list<int>|null $expenseIds */
+                $expenseIds = isset($metadata['cascaded_expenses']) && is_array($metadata['cascaded_expenses']) ? $metadata['cascaded_expenses'] : null;
 
-                if (is_array($taskIds) && ! empty($taskIds)) {
+                if ($taskIds !== null) {
                     Task::onlyTrashed()->whereIn('id', $taskIds)->restore();
                 } else {
                     Task::onlyTrashed()->where('business_id', $id)->restore();
                 }
 
-                if (is_array($contentIds) && ! empty($contentIds)) {
+                if ($contentIds !== null) {
                     ContentItem::onlyTrashed()->whereIn('id', $contentIds)->restore();
                 } else {
                     ContentItem::onlyTrashed()->where('business_id', $id)->restore();
                 }
 
-                if (is_array($invoiceIds) && ! empty($invoiceIds)) {
+                if ($invoiceIds !== null) {
                     Invoice::onlyTrashed()->whereIn('id', $invoiceIds)->restore();
                 } else {
                     Invoice::onlyTrashed()->where('business_id', $id)->restore();
                 }
 
-                if (is_array($expenseIds) && ! empty($expenseIds)) {
+                if ($expenseIds !== null) {
                     Expense::onlyTrashed()->whereIn('id', $expenseIds)->restore();
                 } else {
                     Expense::onlyTrashed()->where('business_id', $id)->restore();
