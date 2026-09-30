@@ -28,4 +28,19 @@ class ContentItemPolicy
     {
         return $user->canManageOperations() || $contentItem->owner_id === $user->id;
     }
+
+    public function delete(User $user, ContentItem $contentItem): bool
+    {
+        return $user->canManageOperations() || $contentItem->owner_id === $user->id;
+    }
+
+    public function restore(User $user, ContentItem $contentItem): bool
+    {
+        return $user->canManageOperations();
+    }
+
+    public function forceDelete(User $user, ContentItem $contentItem): bool
+    {
+        return $user->isOwner();
+    }
 }

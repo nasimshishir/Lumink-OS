@@ -1,12 +1,10 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
-    AlertTriangle,
     ArrowRight,
     BriefcaseBusiness,
     Plus,
     Power,
     PowerOff,
-    RotateCcw,
     Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -26,7 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { dateTime, money, shortDate } from '@/lib/format';
+import { money, shortDate } from '@/lib/format';
 
 type Business = {
     id: number;
@@ -43,7 +41,7 @@ type Business = {
 
 type Props = {
     businesses: Business[];
-    trashedBusinesses?: Business[];
+    trashedCount?: number;
     canManage?: boolean;
     isOwner?: boolean;
 };
@@ -177,21 +175,17 @@ function AddBusinessDialog() {
 
 export default function Businesses({
     businesses = [],
-    trashedBusinesses = [],
+    trashedCount = 0,
     canManage = true,
-    isOwner = true,
 }: Props) {
-    const [currentTab, setCurrentTab] = useState<
-        'active' | 'inactive' | 'all' | 'trash'
-    >('active');
+    const [currentTab, setCurrentTab] = useState<'active' | 'inactive' | 'all'>(
+        'active',
+    );
 
-    // Dialog states
+    // Dialog state for moving a business to trash
     const [businessToTrash, setBusinessToTrash] = useState<Business | null>(
         null,
     );
-    const [businessToForceDelete, setBusinessToForceDelete] =
-        useState<Business | null>(null);
-    const [emptyTrashOpen, setEmptyTrashOpen] = useState(false);
     const [actionInProgress, setActionInProgress] = useState<number | null>(
         null,
     );
@@ -204,9 +198,7 @@ export default function Businesses({
             ? activeList
             : currentTab === 'inactive'
               ? inactiveList
-              : currentTab === 'all'
-                ? businesses
-                : trashedBusinesses;
+              : businesses;
 
     function handleToggleStatus(business: Business) {
         setActionInProgress(business.id);
@@ -233,38 +225,6 @@ export default function Businesses({
         });
     }
 
-    function handleRestore(business: Business) {
-        setActionInProgress(business.id);
-        router.post(
-            `/businesses/${business.id}/restore`,
-            {},
-            {
-                preserveScroll: true,
-                onFinish: () => setActionInProgress(null),
-            },
-        );
-    }
-
-    function confirmForceDelete() {
-        if (!businessToForceDelete) {
-            return;
-        }
-
-        setActionInProgress(businessToForceDelete.id);
-        router.delete(`/businesses/${businessToForceDelete.id}/force-delete`, {
-            preserveScroll: true,
-            onSuccess: () => setBusinessToForceDelete(null),
-            onFinish: () => setActionInProgress(null),
-        });
-    }
-
-    function confirmEmptyTrash() {
-        router.delete('/businesses/trash/empty', {
-            preserveScroll: true,
-            onSuccess: () => setEmptyTrashOpen(false),
-        });
-    }
-
     return (
         <>
             <Head title="Businesses" />
@@ -275,7 +235,7 @@ export default function Businesses({
             />
 
             <main className="flex flex-col gap-5 p-5">
-                {/* Navigation Filter Tabs */}
+                {/* Navigation Filter Tabs & Central Recycle Bin Link */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="inline-flex rounded-lg border bg-muted p-1 text-sm font-medium">
                         <button
@@ -333,54 +293,25 @@ export default function Businesses({
                                 {businesses.length}
                             </Badge>
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => setCurrentTab('trash')}
-                            className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 transition-colors ${
-                                currentTab === 'trash'
-                                    ? 'bg-background text-foreground shadow-xs'
-                                    : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                        >
-                            <Trash2 className="size-3.5" />
-                            Recycle Bin
-                            {trashedBusinesses.length > 0 && (
-                                <Badge
-                                    variant="destructive"
-                                    className="px-1.5 py-0 text-xs"
-                                >
-                                    {trashedBusinesses.length}
-                                </Badge>
-                            )}
-                        </button>
                     </div>
 
-                    {currentTab === 'trash' &&
-                        isOwner &&
-                        trashedBusinesses.length > 0 && (
-                            <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => setEmptyTrashOpen(true)}
-                            >
-                                <Trash2 className="size-3.5" />
-                                Empty Recycle Bin
-                            </Button>
-                        )}
+                    {canManage && (
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href="/recycle-bin?tab=businesses">
+                                <Trash2 className="mr-1.5 size-3.5 text-muted-foreground" />
+                                Recycle Bin
+                                {trashedCount > 0 && (
+                                    <Badge
+                                        variant="secondary"
+                                        className="ml-1 px-1.5 py-0 text-xs"
+                                    >
+                                        {trashedCount}
+                                    </Badge>
+                                )}
+                            </Link>
+                        </Button>
+                    )}
                 </div>
-
-                {/* Recycle Bin Notice */}
-                {currentTab === 'trash' && (
-                    <div className="flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-800 dark:text-amber-300">
-                        <AlertTriangle className="size-5 shrink-0 text-amber-600 dark:text-amber-400" />
-                        <p>
-                            Workspaces in the <strong>Recycle Bin</strong> are
-                            preserved with their history, but hidden from daily
-                            operations and revenue calculations. You can restore
-                            them anytime or permanently delete them.
-                        </p>
-                    </div>
-                )}
 
                 {/* Businesses Table */}
                 <section className="lumink-panel overflow-hidden">
@@ -388,18 +319,14 @@ export default function Businesses({
                         <div className="flex flex-col items-center justify-center p-12 text-center">
                             <BriefcaseBusiness className="size-10 text-muted-foreground" />
                             <h3 className="mt-3 text-base font-semibold">
-                                {currentTab === 'trash'
-                                    ? 'Recycle Bin is empty'
-                                    : currentTab === 'inactive'
-                                      ? 'No inactive businesses'
-                                      : 'No businesses found'}
+                                {currentTab === 'inactive'
+                                    ? 'No inactive businesses'
+                                    : 'No businesses found'}
                             </h3>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                {currentTab === 'trash'
-                                    ? 'No businesses have been moved to the recycle bin.'
-                                    : currentTab === 'inactive'
-                                      ? 'All configured businesses are currently active.'
-                                      : 'Get started by creating a new business workspace.'}
+                                {currentTab === 'inactive'
+                                    ? 'All configured businesses are currently active.'
+                                    : 'Get started by creating a new business workspace.'}
                             </p>
                         </div>
                     ) : (
@@ -409,11 +336,7 @@ export default function Businesses({
                                     <th>Business</th>
                                     <th>Status</th>
                                     <th>Retainer</th>
-                                    <th>
-                                        {currentTab === 'trash'
-                                            ? 'Deleted on'
-                                            : 'Agreement'}
-                                    </th>
+                                    <th>Agreement</th>
                                     <th>Content</th>
                                     <th>Open tasks</th>
                                     <th className="text-right">Actions</th>
@@ -438,112 +361,36 @@ export default function Businesses({
                                             </div>
                                         </td>
                                         <td>
-                                            {currentTab === 'trash' ? (
-                                                <Badge variant="destructive">
-                                                    In Trash
-                                                </Badge>
-                                            ) : (
-                                                <StatusBadge
-                                                    value={business.status}
-                                                />
-                                            )}
+                                            <StatusBadge
+                                                value={business.status}
+                                            />
                                         </td>
                                         <td className="font-medium">
                                             {money(business.monthly_retainer)}
                                         </td>
                                         <td className="text-muted-foreground">
-                                            {currentTab === 'trash'
-                                                ? business.deleted_at
-                                                    ? dateTime(
-                                                          business.deleted_at,
-                                                      )
-                                                    : '—'
-                                                : shortDate(
-                                                      business.agreement_start,
-                                                  )}
+                                            {shortDate(
+                                                business.agreement_start,
+                                            )}
                                         </td>
                                         <td>{business.content_items_count}</td>
                                         <td>{business.tasks_count}</td>
                                         <td className="text-right">
                                             <div className="flex items-center justify-end gap-1.5">
-                                                {currentTab !== 'trash' ? (
-                                                    <>
-                                                        <Button
-                                                            asChild
-                                                            variant="ghost"
-                                                            size="sm"
-                                                        >
-                                                            <Link
-                                                                href={`/businesses/${business.id}`}
-                                                            >
-                                                                Open
-                                                                <ArrowRight data-icon="inline-end" />
-                                                            </Link>
-                                                        </Button>
+                                                <Button
+                                                    asChild
+                                                    variant="ghost"
+                                                    size="sm"
+                                                >
+                                                    <Link
+                                                        href={`/businesses/${business.id}`}
+                                                    >
+                                                        Open
+                                                        <ArrowRight data-icon="inline-end" />
+                                                    </Link>
+                                                </Button>
 
-                                                        {canManage && (
-                                                            <>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    disabled={
-                                                                        actionInProgress ===
-                                                                        business.id
-                                                                    }
-                                                                    onClick={() =>
-                                                                        handleToggleStatus(
-                                                                            business,
-                                                                        )
-                                                                    }
-                                                                    title={
-                                                                        business.status ===
-                                                                        'active'
-                                                                            ? 'Deactivate workspace'
-                                                                            : 'Activate workspace'
-                                                                    }
-                                                                    className={
-                                                                        business.status ===
-                                                                        'active'
-                                                                            ? 'text-muted-foreground hover:text-amber-600'
-                                                                            : 'text-emerald-600 hover:text-emerald-700'
-                                                                    }
-                                                                >
-                                                                    {business.status ===
-                                                                    'active' ? (
-                                                                        <>
-                                                                            <PowerOff className="size-3.5" />
-                                                                            Deactivate
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <Power className="size-3.5" />
-                                                                            Activate
-                                                                        </>
-                                                                    )}
-                                                                </Button>
-
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    disabled={
-                                                                        actionInProgress ===
-                                                                        business.id
-                                                                    }
-                                                                    onClick={() =>
-                                                                        setBusinessToTrash(
-                                                                            business,
-                                                                        )
-                                                                    }
-                                                                    className="text-muted-foreground hover:text-destructive"
-                                                                    title="Move to Recycle Bin"
-                                                                >
-                                                                    <Trash2 className="size-3.5" />
-                                                                </Button>
-                                                            </>
-                                                        )}
-                                                    </>
-                                                ) : (
-                                                    /* Recycle Bin Row Actions */
+                                                {canManage && (
                                                     <>
                                                         <Button
                                                             variant="outline"
@@ -553,35 +400,54 @@ export default function Businesses({
                                                                 business.id
                                                             }
                                                             onClick={() =>
-                                                                handleRestore(
+                                                                handleToggleStatus(
                                                                     business,
                                                                 )
                                                             }
-                                                            className="text-primary"
+                                                            title={
+                                                                business.status ===
+                                                                'active'
+                                                                    ? 'Deactivate workspace'
+                                                                    : 'Activate workspace'
+                                                            }
+                                                            className={
+                                                                business.status ===
+                                                                'active'
+                                                                    ? 'text-muted-foreground hover:text-amber-600'
+                                                                    : 'text-emerald-600 hover:text-emerald-700'
+                                                            }
                                                         >
-                                                            <RotateCcw className="size-3.5" />
-                                                            Restore
+                                                            {business.status ===
+                                                            'active' ? (
+                                                                <>
+                                                                    <PowerOff className="size-3.5" />
+                                                                    Deactivate
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Power className="size-3.5" />
+                                                                    Activate
+                                                                </>
+                                                            )}
                                                         </Button>
 
-                                                        {isOwner && (
-                                                            <Button
-                                                                variant="destructive"
-                                                                size="sm"
-                                                                disabled={
-                                                                    actionInProgress ===
-                                                                    business.id
-                                                                }
-                                                                onClick={() =>
-                                                                    setBusinessToForceDelete(
-                                                                        business,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Trash2 className="size-3.5" />
-                                                                Delete
-                                                                permanently
-                                                            </Button>
-                                                        )}
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            disabled={
+                                                                actionInProgress ===
+                                                                business.id
+                                                            }
+                                                            onClick={() =>
+                                                                setBusinessToTrash(
+                                                                    business,
+                                                                )
+                                                            }
+                                                            className="text-muted-foreground hover:text-destructive"
+                                                            title="Move to Recycle Bin"
+                                                        >
+                                                            <Trash2 className="size-3.5" />
+                                                        </Button>
                                                     </>
                                                 )}
                                             </div>
@@ -612,8 +478,8 @@ export default function Businesses({
                             <br />
                             The workspace will be deactivated and hidden from
                             daily operations, active task queues, and revenue
-                            reports. All campaigns and tasks remain intact and
-                            can be restored at any time.
+                            reports. It can be viewed and restored at any time
+                            from the admin panel's central Recycle Bin.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
@@ -629,89 +495,6 @@ export default function Businesses({
                             disabled={Boolean(actionInProgress)}
                         >
                             Move to Recycle Bin
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Permanent Force Delete Confirmation Dialog */}
-            <Dialog
-                open={Boolean(businessToForceDelete)}
-                onOpenChange={(open) => !open && setBusinessToForceDelete(null)}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-destructive">
-                            <AlertTriangle className="size-5" />
-                            Permanently delete workspace?
-                        </DialogTitle>
-                        <DialogDescription className="space-y-2">
-                            <p>
-                                Are you sure you want to completely delete{' '}
-                                <strong>{businessToForceDelete?.name}</strong>?
-                            </p>
-                            <p className="rounded-md bg-destructive/10 p-3 text-xs font-medium text-destructive">
-                                <strong>WARNING:</strong> This action cannot be
-                                undone. This will permanently erase the business
-                                workspace and all associated campaigns, content
-                                items, tasks, invoice records, and performance
-                                reports.
-                            </p>
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setBusinessToForceDelete(null)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={confirmForceDelete}
-                            disabled={Boolean(actionInProgress)}
-                        >
-                            Permanently delete
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Empty Recycle Bin Confirmation Dialog */}
-            <Dialog open={emptyTrashOpen} onOpenChange={setEmptyTrashOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-destructive">
-                            <AlertTriangle className="size-5" />
-                            Empty entire Recycle Bin?
-                        </DialogTitle>
-                        <DialogDescription className="space-y-2">
-                            <p>
-                                This will permanently delete all{' '}
-                                <strong>
-                                    {trashedBusinesses.length} businesses
-                                </strong>{' '}
-                                currently in the Recycle Bin.
-                            </p>
-                            <p className="rounded-md bg-destructive/10 p-3 text-xs font-medium text-destructive">
-                                All associated campaigns, tasks, and data for
-                                these businesses will be permanently wiped. This
-                                cannot be undone.
-                            </p>
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setEmptyTrashOpen(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={confirmEmptyTrash}
-                        >
-                            Empty Recycle Bin
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -13,6 +13,8 @@ use Illuminate\Support\Carbon;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * @property int $id
@@ -36,12 +38,22 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+    use HasFactory, HasRoles, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     protected $attributes = [
         'is_active' => true,
         'role' => 'specialist',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function (User $user) {
+            if ($user->role && ($user->wasChanged('role') || ! $user->roles()->exists())) {
+                $role = Role::firstOrCreate(['name' => $user->role, 'guard_name' => 'web']);
+                $user->syncRoles([$role]);
+            }
+        });
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -60,11 +72,13 @@ class User extends Authenticatable implements PasskeyUser
 
     public function isOwner(): bool
     {
-        return $this->role === 'owner';
+        return $this->role === 'owner' || $this->hasRole('owner');
     }
 
     public function canManageOperations(): bool
     {
-        return in_array($this->role, ['owner', 'manager'], true);
+        return in_array($this->role, ['owner', 'manager'], true)
+            || $this->hasAnyRole(['owner', 'manager'])
+            || $this->can('businesses.view');
     }
 }

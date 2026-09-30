@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 /**
@@ -16,11 +17,14 @@ use Illuminate\Support\Carbon;
  * @property string $priority
  * @property int $actual_minutes
  * @property Carbon|null $due_at
+ * @property Carbon|null $deleted_at
  * @property-read User|null $owner
  * @property-read User|null $creator
  */
 class Task extends Model
 {
+    use SoftDeletes;
+
     protected $guarded = [];
 
     protected function casts(): array

@@ -155,4 +155,24 @@ class ContentController extends Controller
 
         return to_route('content.show', $content);
     }
+
+    public function destroy(Request $request, ContentItem $contentItem): RedirectResponse
+    {
+        abort_unless($request->user()->can('delete', $contentItem), 403);
+
+        $title = $contentItem->title;
+        $id = $contentItem->id;
+
+        $contentItem->delete();
+
+        AuditEvent::create([
+            'user_id' => $request->user()->id,
+            'event' => 'content.trashed',
+            'auditable_type' => ContentItem::class,
+            'auditable_id' => $id,
+            'metadata' => ['title' => $title],
+        ]);
+
+        return to_route('content.index')->with('success', "Content '{$title}' moved to the Recycle Bin.");
+    }
 }

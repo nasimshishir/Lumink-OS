@@ -1,10 +1,11 @@
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     Check,
     Clock,
     Copy,
     Mail,
     RotateCw,
+    ShieldCheck,
     Trash2,
     UserCheck,
     UserPlus,
@@ -202,7 +203,17 @@ export default function Team({
             <PageHeading
                 title="Team"
                 description="Owner, manager, and specialist access."
-                actions={<InviteDialog />}
+                actions={
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button variant="outline" asChild>
+                            <Link href="/roles">
+                                <ShieldCheck className="mr-1.5 size-4" />
+                                Roles & Permissions
+                            </Link>
+                        </Button>
+                        <InviteDialog />
+                    </div>
+                }
             />
             <main className="flex flex-col gap-6 p-5">
                 <section className="lumink-panel overflow-hidden">

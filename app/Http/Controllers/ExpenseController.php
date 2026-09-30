@@ -35,4 +35,24 @@ class ExpenseController extends Controller
 
         return back();
     }
+
+    public function destroy(Request $request, Expense $expense): RedirectResponse
+    {
+        abort_unless($request->user()->isOwner() || $request->user()->can('expenses.delete'), 403);
+
+        $description = $expense->description;
+        $id = $expense->id;
+
+        $expense->delete();
+
+        AuditEvent::create([
+            'user_id' => $request->user()->id,
+            'event' => 'expense.trashed',
+            'auditable_type' => Expense::class,
+            'auditable_id' => $id,
+            'metadata' => ['description' => $description],
+        ]);
+
+        return back()->with('success', "Expense '{$description}' moved to the Recycle Bin.");
+    }
 }

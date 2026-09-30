@@ -21,10 +21,7 @@ class BusinessController extends Controller
             'businesses' => Business::withCount(['contentItems', 'tasks'])
                 ->orderBy('name')
                 ->get(),
-            'trashedBusinesses' => Business::onlyTrashed()
-                ->withCount(['contentItems', 'tasks'])
-                ->orderByDesc('deleted_at')
-                ->get(),
+            'trashedCount' => Business::onlyTrashed()->count(),
             'canManage' => $request->user()->canManageOperations(),
             'isOwner' => $request->user()->isOwner(),
         ]);

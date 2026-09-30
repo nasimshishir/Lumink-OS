@@ -16,4 +16,19 @@ class TaskPolicy
     {
         return $user->canManageOperations() || $task->owner_id === $user->id;
     }
+
+    public function delete(User $user, Task $task): bool
+    {
+        return $user->canManageOperations() || $task->owner_id === $user->id;
+    }
+
+    public function restore(User $user, Task $task): bool
+    {
+        return $user->canManageOperations();
+    }
+
+    public function forceDelete(User $user, Task $task): bool
+    {
+        return $user->isOwner();
+    }
 }

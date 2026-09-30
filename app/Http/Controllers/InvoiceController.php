@@ -65,4 +65,24 @@ class InvoiceController extends Controller
             ->setPaper('a4')
             ->download($invoice->number.'.pdf');
     }
+
+    public function destroy(Request $request, Invoice $invoice): RedirectResponse
+    {
+        abort_unless($request->user()->isOwner() || $request->user()->can('invoices.delete'), 403);
+
+        $number = $invoice->number;
+        $id = $invoice->id;
+
+        $invoice->delete();
+
+        AuditEvent::create([
+            'user_id' => $request->user()->id,
+            'event' => 'invoice.trashed',
+            'auditable_type' => Invoice::class,
+            'auditable_id' => $id,
+            'metadata' => ['number' => $number],
+        ]);
+
+        return back()->with('success', "Invoice {$number} moved to the Recycle Bin.");
+    }
 }

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 /**
@@ -16,6 +17,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $issue_date
  * @property Carbon $due_date
  * @property string $total
+ * @property Carbon|null $deleted_at
  * @property-read float $paid_amount
  * @property-read float $balance
  * @property-read string $effective_status
@@ -23,6 +25,8 @@ use Illuminate\Support\Carbon;
  */
 class Invoice extends Model
 {
+    use SoftDeletes;
+
     protected $guarded = [];
 
     protected function casts(): array

@@ -99,4 +99,24 @@ class TaskController extends Controller
 
         return back();
     }
+
+    public function destroy(Request $request, Task $task): RedirectResponse
+    {
+        abort_unless($request->user()->can('delete', $task), 403);
+
+        $title = $task->title;
+        $id = $task->id;
+
+        $task->delete();
+
+        AuditEvent::create([
+            'user_id' => $request->user()->id,
+            'event' => 'task.trashed',
+            'auditable_type' => Task::class,
+            'auditable_id' => $id,
+            'metadata' => ['title' => $title],
+        ]);
+
+        return back()->with('success', "Task '{$title}' moved to the Recycle Bin.");
+    }
 }

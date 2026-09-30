@@ -7,6 +7,8 @@ import {
     ClipboardCheck,
     LayoutDashboard,
     Settings,
+    ShieldCheck,
+    Trash2,
     Users,
     Video,
 } from 'lucide-react';
@@ -46,6 +48,18 @@ const allNavItems: (NavItem & {
     },
     { title: 'Reports', href: '/reports', icon: BarChart3, ownerOnly: true },
     { title: 'Team', href: '/team', icon: Users, ownerOnly: true },
+    {
+        title: 'Roles & Permissions',
+        href: '/roles',
+        icon: ShieldCheck,
+        ownerOnly: true,
+    },
+    {
+        title: 'Recycle Bin',
+        href: '/recycle-bin',
+        icon: Trash2,
+        operationsOnly: true,
+    },
     { title: 'Settings', href: '/settings/profile', icon: Settings },
 ];
 
