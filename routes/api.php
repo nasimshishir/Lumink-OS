@@ -37,6 +37,19 @@ $registerApiEndpoints = function (string $prefix = '') {
         Route::get('/content/{contentItem}', [ContentApiController::class, 'show'])->name($namePrefix.'content.show');
         Route::patch('/content/{contentItem}', [ContentApiController::class, 'update'])->name($namePrefix.'content.update');
         Route::delete('/content/{contentItem}', [ContentApiController::class, 'destroy'])->name($namePrefix.'content.destroy');
+        Route::get('/content/{contentItem}/inspirations', [ContentApiController::class, 'listInspirations'])->name($namePrefix.'content.inspirations.index');
+        Route::post('/content/{contentItem}/inspirations', [ContentApiController::class, 'addInspiration'])->name($namePrefix.'content.inspirations.store');
+        Route::delete('/content/{contentItem}/inspirations/{inspiration}', [ContentApiController::class, 'deleteInspiration'])->name($namePrefix.'content.inspirations.destroy');
+
+        // Content Aliases (plural /contents for agent convenience)
+        Route::get('/contents', [ContentApiController::class, 'index'])->name($namePrefix.'contents.index');
+        Route::post('/contents', [ContentApiController::class, 'store'])->name($namePrefix.'contents.store');
+        Route::get('/contents/{contentItem}', [ContentApiController::class, 'show'])->name($namePrefix.'contents.show');
+        Route::patch('/contents/{contentItem}', [ContentApiController::class, 'update'])->name($namePrefix.'contents.update');
+        Route::delete('/contents/{contentItem}', [ContentApiController::class, 'destroy'])->name($namePrefix.'contents.destroy');
+        Route::get('/contents/{contentItem}/inspirations', [ContentApiController::class, 'listInspirations'])->name($namePrefix.'contents.inspirations.index');
+        Route::post('/contents/{contentItem}/inspirations', [ContentApiController::class, 'addInspiration'])->name($namePrefix.'contents.inspirations.store');
+        Route::delete('/contents/{contentItem}/inspirations/{inspiration}', [ContentApiController::class, 'deleteInspiration'])->name($namePrefix.'contents.inspirations.destroy');
 
         // Tasks & Execution Tracking
         Route::get('/tasks', [TaskApiController::class, 'index'])->name($namePrefix.'tasks.index');

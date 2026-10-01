@@ -247,6 +247,21 @@ class AgentSchemaController extends Controller
                                                     ],
                                                 ],
                                             ],
+                                            'inspirations' => [
+                                                'type' => 'array',
+                                                'description' => 'Optional array of inspiration references (URLs, moodboard images, notes)',
+                                                'items' => [
+                                                    'type' => 'object',
+                                                    'properties' => [
+                                                        'url' => ['type' => 'string', 'description' => 'Reference URL (Instagram, TikTok, Pinterest, YouTube, etc.)'],
+                                                        'title' => ['type' => 'string', 'description' => 'Optional title (auto-derived if omitted)'],
+                                                        'notes' => ['type' => 'string', 'description' => 'Creative notes on composition, hook, or lighting'],
+                                                        'type' => ['type' => 'string', 'enum' => ['link', 'image', 'video', 'note']],
+                                                        'image_url' => ['type' => 'string'],
+                                                        'tags' => ['type' => 'array', 'items' => ['type' => 'string']],
+                                                    ],
+                                                ],
+                                            ],
                                         ],
                                     ],
                                 ],
@@ -262,7 +277,7 @@ class AgentSchemaController extends Controller
                         'responses' => ['200' => ['description' => 'Content item details']],
                     ],
                     'patch' => [
-                        'summary' => 'Update content deliverable details, advance stage, or attach Drive shot directory',
+                        'summary' => 'Update content deliverable details, advance stage, attach Drive shot directory, or append inspirations',
                         'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'integer']]],
                         'requestBody' => [
                             'required' => true,
@@ -284,6 +299,24 @@ class AgentSchemaController extends Controller
                                             'raw_footage_url' => ['type' => 'string'],
                                             'final_asset_url' => ['type' => 'string', 'description' => 'Google Drive or cloud export URL when ready'],
                                             'publish_at' => ['type' => 'string', 'format' => 'date-time'],
+                                            'inspirations' => [
+                                                'type' => 'array',
+                                                'description' => 'Append or set inspiration references (URLs, images, notes)',
+                                                'items' => [
+                                                    'type' => 'object',
+                                                    'properties' => [
+                                                        'url' => ['type' => 'string'],
+                                                        'title' => ['type' => 'string'],
+                                                        'notes' => ['type' => 'string'],
+                                                        'type' => ['type' => 'string', 'enum' => ['link', 'image', 'video', 'note']],
+                                                        'image_url' => ['type' => 'string'],
+                                                    ],
+                                                ],
+                                            ],
+                                            'replace_inspirations' => [
+                                                'type' => 'boolean',
+                                                'description' => 'If true, replaces existing inspirations instead of appending',
+                                            ],
                                         ],
                                     ],
                                 ],
@@ -295,6 +328,50 @@ class AgentSchemaController extends Controller
                         'summary' => 'Move content deliverable to Recycle Bin',
                         'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'integer']]],
                         'responses' => ['200' => ['description' => 'Content item soft-deleted']],
+                    ],
+                ],
+                '/content/{id}/inspirations' => [
+                    'get' => [
+                        'summary' => 'List all inspiration references for a content deliverable',
+                        'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'integer']]],
+                        'responses' => ['200' => ['description' => 'List of inspirations']],
+                    ],
+                    'post' => [
+                        'summary' => 'Add inspiration reference(s) to a content deliverable',
+                        'parameters' => [['name' => 'id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'integer']]],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => [
+                                'application/json' => [
+                                    'schema' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'url' => ['type' => 'string'],
+                                            'title' => ['type' => 'string'],
+                                            'notes' => ['type' => 'string'],
+                                            'type' => ['type' => 'string', 'enum' => ['link', 'image', 'video', 'note']],
+                                            'image_url' => ['type' => 'string'],
+                                            'inspirations' => [
+                                                'type' => 'array',
+                                                'description' => 'Optional array if submitting multiple inspirations in batch',
+                                                'items' => ['type' => 'object'],
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                        'responses' => ['201' => ['description' => 'Inspiration reference(s) added']],
+                    ],
+                ],
+                '/content/{id}/inspirations/{inspiration_id}' => [
+                    'delete' => [
+                        'summary' => 'Delete an inspiration reference from a content deliverable',
+                        'parameters' => [
+                            ['name' => 'id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'integer']],
+                            ['name' => 'inspiration_id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'integer']],
+                        ],
+                        'responses' => ['200' => ['description' => 'Inspiration deleted']],
                     ],
                 ],
                 '/tasks' => [

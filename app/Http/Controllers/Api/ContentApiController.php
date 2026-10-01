@@ -4,13 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditEvent;
+use App\Models\ContentInspiration;
 use App\Models\ContentItem;
 use App\Models\ShootSession;
 use App\Models\Task;
+use App\Models\User;
 use App\Services\GoogleDriveService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class ContentApiController extends Controller
@@ -68,7 +71,7 @@ class ContentApiController extends Controller
     }
 
     /**
-     * Create a new content deliverable (and optional initial tasks).
+     * Create a new content deliverable (and optional initial tasks and inspirations).
      */
     public function store(Request $request, GoogleDriveService $driveService): JsonResponse
     {
@@ -102,6 +105,7 @@ class ContentApiController extends Controller
             'tasks.*.due_at' => ['nullable', 'date'],
             'tasks.*.estimate_minutes' => ['nullable', 'integer', 'min:0'],
             'tasks.*.description' => ['nullable', 'string'],
+            'inspirations' => ['nullable'],
             'auto_provision_drive' => ['nullable', 'boolean'],
         ]);
 
@@ -114,15 +118,23 @@ class ContentApiController extends Controller
         }
 
         $tasksData = $data['tasks'] ?? [];
-        unset($data['tasks'], $data['auto_provision_drive']);
+        $rawInspirations = $data['inspirations'] ?? [];
+        if (! is_array($rawInspirations)) {
+            $rawInspirations = $rawInspirations ? [$rawInspirations] : [];
+        } elseif (! empty($rawInspirations) && ! array_is_list($rawInspirations)) {
+            $rawInspirations = [$rawInspirations];
+        }
+
+        unset($data['tasks'], $data['inspirations'], $data['auto_provision_drive']);
 
         $user = $request->user();
+        $userId = $user instanceof User ? $user->id : null;
 
         /** @var ContentItem $contentItem */
-        $contentItem = DB::transaction(function () use ($data, $tasksData, $user) {
+        $contentItem = DB::transaction(function () use ($data, $tasksData, $rawInspirations, $userId) {
             $contentItem = ContentItem::create([
                 ...$data,
-                'owner_id' => $data['owner_id'] ?? $user->id,
+                'owner_id' => $data['owner_id'] ?? $userId,
             ]);
 
             foreach ($tasksData as $tData) {
@@ -137,18 +149,25 @@ class ContentApiController extends Controller
                     'estimate_minutes' => $tData['estimate_minutes'] ?? 0,
                     'description' => $tData['description'] ?? null,
                     'owner_id' => $contentItem->owner_id,
-                    'created_by' => $user->id,
+                    'created_by' => $userId,
                 ]);
             }
 
+            foreach ($rawInspirations as $index => $iData) {
+                if (! empty($iData)) {
+                    $contentItem->attachInspiration($iData, $userId, $index);
+                }
+            }
+
             AuditEvent::create([
-                'user_id' => $user->id,
+                'user_id' => $userId,
                 'event' => 'content.created_via_agent',
                 'auditable_type' => ContentItem::class,
                 'auditable_id' => $contentItem->id,
                 'metadata' => [
                     'title' => $contentItem->title,
                     'tasks_count' => count($tasksData),
+                    'inspirations_count' => count($rawInspirations),
                     'primary_shoot_id' => $contentItem->primary_shoot_id,
                     'referenced_shoots_count' => count($contentItem->referenced_shoot_ids ?? []),
                 ],
@@ -167,6 +186,7 @@ class ContentApiController extends Controller
             'tasks',
             'business:id,name,slug,drive_folder_url',
             'primaryShoot:id,title,starts_at,location,drive_folder_url,broll_tags',
+            'inspirations.user:id,name,avatar',
         ]);
 
         $responseData = $contentItem->toArray();
@@ -206,7 +226,7 @@ class ContentApiController extends Controller
     }
 
     /**
-     * Update content deliverable details, advance stage, or attach Drive shot directory / asset URLs.
+     * Update content deliverable details, advance stage, attach Drive shot directory, or append inspirations.
      */
     public function update(Request $request, ContentItem $contentItem, GoogleDriveService $driveService): JsonResponse
     {
@@ -233,6 +253,8 @@ class ContentApiController extends Controller
             'final_asset_url' => ['nullable', 'string', 'max:1000'],
             'publish_at' => ['nullable', 'date'],
             'owner_id' => ['nullable', 'exists:users,id'],
+            'inspirations' => ['nullable'],
+            'replace_inspirations' => ['nullable', 'boolean'],
         ]);
 
         // Inherit primary shoot's drive folder if provided and not explicitly set
@@ -243,17 +265,47 @@ class ContentApiController extends Controller
             }
         }
 
+        $user = $request->user();
+        $userId = $user instanceof User ? $user->id : null;
+
+        $hasInspirations = array_key_exists('inspirations', $data);
+        $rawInspirations = $data['inspirations'] ?? [];
+        $replaceInspirations = (bool) ($data['replace_inspirations'] ?? false);
+        unset($data['inspirations'], $data['replace_inspirations']);
+
         $oldStage = $contentItem->stage;
         $contentItem->update($data);
 
+        if ($hasInspirations) {
+            if (! is_array($rawInspirations)) {
+                $rawInspirations = $rawInspirations ? [$rawInspirations] : [];
+            } elseif (! empty($rawInspirations) && ! array_is_list($rawInspirations)) {
+                $rawInspirations = [$rawInspirations];
+            }
+
+            if ($replaceInspirations) {
+                $contentItem->inspirations()->delete();
+                $currentCount = 0;
+            } else {
+                $currentCount = $contentItem->inspirations()->count();
+            }
+
+            foreach ($rawInspirations as $index => $iData) {
+                if (! empty($iData)) {
+                    $contentItem->attachInspiration($iData, $userId, $currentCount + $index);
+                }
+            }
+        }
+
         AuditEvent::create([
-            'user_id' => $request->user()->id,
+            'user_id' => $userId,
             'event' => 'content.updated_via_agent',
             'auditable_type' => ContentItem::class,
             'auditable_id' => $contentItem->id,
             'metadata' => [
                 'updated_fields' => array_keys($data),
                 'stage_change' => isset($data['stage']) && $data['stage'] !== $oldStage ? ['from' => $oldStage, 'to' => $data['stage']] : null,
+                'inspirations_added' => $hasInspirations ? count($rawInspirations) : 0,
             ],
         ]);
 
@@ -261,6 +313,7 @@ class ContentApiController extends Controller
             'tasks',
             'business:id,name,slug,drive_folder_url',
             'primaryShoot:id,title,starts_at,location,drive_folder_url,broll_tags',
+            'inspirations.user:id,name,avatar',
         ]);
 
         $responseData = $contentItem->toArray();
@@ -274,6 +327,111 @@ class ContentApiController extends Controller
     }
 
     /**
+     * List all inspiration references for a content deliverable.
+     */
+    public function listInspirations(Request $request, ContentItem $contentItem): JsonResponse
+    {
+        abort_if($contentItem->trashed(), 404, 'Content deliverable is in Recycle Bin.');
+
+        $inspirations = $contentItem->inspirations()
+            ->with('user:id,name,avatar')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $inspirations,
+        ]);
+    }
+
+    /**
+     * Add one or more inspiration references to a content deliverable.
+     */
+    public function addInspiration(Request $request, ContentItem $contentItem): JsonResponse
+    {
+        abort_if($contentItem->trashed(), 404, 'Content deliverable is in Recycle Bin.');
+
+        $user = $request->user();
+        $userId = $user instanceof User ? $user->id : null;
+
+        $rawItems = [];
+        if ($request->has('inspirations')) {
+            $input = $request->input('inspirations');
+            $rawItems = is_array($input) ? $input : [$input];
+        } else {
+            /** @var array<mixed> $all */
+            $all = $request->all();
+            if (array_is_list($all)) {
+                $rawItems = $all;
+            } else {
+                $rawItems = [$all];
+            }
+        }
+
+        $created = [];
+        $currentCount = $contentItem->inspirations()->count();
+
+        foreach ($rawItems as $index => $item) {
+            if (! empty($item)) {
+                $inspiration = $contentItem->attachInspiration($item, $userId, $currentCount + $index);
+                if ($inspiration) {
+                    $inspiration->load('user:id,name,avatar');
+                    $created[] = $inspiration;
+                }
+            }
+        }
+
+        AuditEvent::create([
+            'user_id' => $userId,
+            'event' => 'content.inspirations_added_via_agent',
+            'auditable_type' => ContentItem::class,
+            'auditable_id' => $contentItem->id,
+            'metadata' => [
+                'added_count' => count($created),
+            ],
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => count($created).' inspiration reference(s) saved.',
+            'data' => $created,
+        ], 201);
+    }
+
+    /**
+     * Delete an inspiration reference from a content deliverable.
+     */
+    public function deleteInspiration(Request $request, ContentItem $contentItem, ContentInspiration $inspiration): JsonResponse
+    {
+        abort_if($contentItem->trashed(), 404, 'Content deliverable is in Recycle Bin.');
+        abort_unless($inspiration->content_item_id === $contentItem->id, 404, 'Inspiration does not belong to this content item.');
+
+        if ($inspiration->image_path) {
+            Storage::disk('public')->delete($inspiration->image_path);
+        }
+
+        $user = $request->user();
+        $userId = $user instanceof User ? $user->id : null;
+
+        $title = $inspiration->title;
+        $inspiration->delete();
+
+        AuditEvent::create([
+            'user_id' => $userId,
+            'event' => 'content.inspiration_deleted_via_agent',
+            'auditable_type' => ContentItem::class,
+            'auditable_id' => $contentItem->id,
+            'metadata' => [
+                'title' => $title,
+            ],
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Inspiration reference removed.',
+        ]);
+    }
+
+    /**
      * Soft delete content deliverable.
      */
     public function destroy(Request $request, ContentItem $contentItem): JsonResponse
@@ -283,8 +441,11 @@ class ContentApiController extends Controller
         $title = $contentItem->title;
         $contentItem->delete();
 
+        $user = $request->user();
+        $userId = $user instanceof User ? $user->id : null;
+
         AuditEvent::create([
-            'user_id' => $request->user()->id,
+            'user_id' => $userId,
             'event' => 'content.trashed_via_agent',
             'auditable_type' => ContentItem::class,
             'auditable_id' => $contentItem->id,

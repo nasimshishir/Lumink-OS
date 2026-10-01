@@ -542,4 +542,209 @@ class AgentApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('status', 'success');
     }
+
+    public function test_authenticated_agent_can_create_content_with_inspirations_array(): void
+    {
+        $user = User::factory()->create(['role' => 'owner']);
+        $token = $user->createToken('agent-token', ['*'])->plainTextToken;
+
+        $business = Business::create([
+            'name' => 'Fashion Juicy',
+            'slug' => 'fashion-juicy',
+            'monthly_retainer' => 30000,
+        ]);
+
+        $payload = [
+            'business_id' => $business->id,
+            'title' => 'Fall Collection Styling Reel',
+            'type' => 'reel',
+            'stage' => 'idea',
+            'brief' => '3 cozy outfit transitions with warm tones.',
+            'inspirations' => [
+                [
+                    'url' => 'https://www.instagram.com/reel/xyz123',
+                    'notes' => 'Pacing and quick transition cut reference',
+                ],
+                [
+                    'title' => 'Warm Autumn Color Palette',
+                    'image_url' => 'https://images.unsplash.com/autumn-palette.jpg',
+                    'type' => 'image',
+                    'notes' => 'Color grade target for golden hour looks',
+                    'tags' => ['color', 'moodboard'],
+                ],
+                'https://www.tiktok.com/@fashion/video/456789',
+            ],
+        ];
+
+        $response = $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson('/api/v1/content', $payload);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.title', 'Fall Collection Styling Reel')
+            ->assertJsonCount(3, 'data.inspirations');
+
+        $contentId = $response->json('data.id');
+
+        $this->assertDatabaseCount('content_inspirations', 3);
+        $this->assertDatabaseHas('content_inspirations', [
+            'content_item_id' => $contentId,
+            'url' => 'https://www.instagram.com/reel/xyz123',
+            'notes' => 'Pacing and quick transition cut reference',
+            'type' => 'video',
+        ]);
+        $this->assertDatabaseHas('content_inspirations', [
+            'content_item_id' => $contentId,
+            'title' => 'Warm Autumn Color Palette',
+            'image_url' => 'https://images.unsplash.com/autumn-palette.jpg',
+            'type' => 'image',
+        ]);
+    }
+
+    public function test_authenticated_agent_can_update_content_with_inspirations(): void
+    {
+        $user = User::factory()->create(['role' => 'owner']);
+        $token = $user->createToken('agent-token', ['*'])->plainTextToken;
+
+        $business = Business::create([
+            'name' => 'Jaitun',
+            'slug' => 'jaitun',
+            'monthly_retainer' => 25000,
+        ]);
+
+        $content = ContentItem::create([
+            'business_id' => $business->id,
+            'owner_id' => $user->id,
+            'title' => 'Olive Oil Tasting Carousel',
+            'type' => 'carousel',
+            'stage' => 'idea',
+        ]);
+
+        // Add 1 inspiration via ContentItem
+        $content->attachInspiration([
+            'title' => 'Initial Pitch Moodboard',
+            'url' => 'https://pinterest.com/pin/111',
+            'notes' => 'Initial reference',
+        ], $user->id);
+
+        $this->assertDatabaseCount('content_inspirations', 1);
+
+        // Append 2 new inspirations via PATCH /content/{id}
+        $response = $this->withHeader('Authorization', "Bearer {$token}")
+            ->patchJson("/api/v1/content/{$content->id}", [
+                'inspirations' => [
+                    [
+                        'url' => 'https://instagram.com/reel/olive222',
+                        'notes' => 'Slow pour macro shot reference',
+                    ],
+                    [
+                        'url' => 'https://youtube.com/watch?v=333',
+                        'notes' => 'Audio soundscape reference',
+                    ],
+                ],
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonCount(3, 'data.inspirations');
+
+        $this->assertDatabaseCount('content_inspirations', 3);
+
+        // Now test replace_inspirations: true
+        $replaceResponse = $this->withHeader('Authorization', "Bearer {$token}")
+            ->patchJson("/api/v1/content/{$content->id}", [
+                'replace_inspirations' => true,
+                'inspirations' => [
+                    [
+                        'title' => 'Definitive Solo Reference',
+                        'url' => 'https://vimeo.com/444',
+                        'notes' => 'The only moodboard to follow',
+                    ],
+                ],
+            ]);
+
+        $replaceResponse->assertOk()
+            ->assertJsonCount(1, 'data.inspirations')
+            ->assertJsonPath('data.inspirations.0.title', 'Definitive Solo Reference');
+
+        $this->assertDatabaseCount('content_inspirations', 1);
+    }
+
+    public function test_authenticated_agent_can_manage_inspirations_via_dedicated_endpoints(): void
+    {
+        $user = User::factory()->create(['role' => 'owner']);
+        $token = $user->createToken('agent-token', ['*'])->plainTextToken;
+
+        $business = Business::create(['name' => 'Cafe Co', 'slug' => 'cafe-co', 'monthly_retainer' => 15000]);
+        $content = ContentItem::create([
+            'business_id' => $business->id,
+            'owner_id' => $user->id,
+            'title' => 'Barista Morning Routine',
+            'type' => 'reel',
+            'stage' => 'idea',
+        ]);
+
+        // 1. POST single inspiration
+        $postRes = $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson("/api/v1/content/{$content->id}/inspirations", [
+                'url' => 'https://instagram.com/reel/barista1',
+                'notes' => 'Steam wand close-up lighting',
+            ]);
+
+        $postRes->assertStatus(201)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonCount(1, 'data');
+
+        // 2. GET list inspirations
+        $getRes = $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson("/api/v1/content/{$content->id}/inspirations");
+
+        $getRes->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.url', 'https://instagram.com/reel/barista1');
+
+        $inspirationId = $getRes->json('data.0.id');
+
+        // 3. DELETE inspiration
+        $delRes = $this->withHeader('Authorization', "Bearer {$token}")
+            ->deleteJson("/api/v1/content/{$content->id}/inspirations/{$inspirationId}");
+
+        $delRes->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $this->assertDatabaseCount('content_inspirations', 0);
+    }
+
+    public function test_authenticated_agent_can_use_plural_contents_route_alias(): void
+    {
+        $user = User::factory()->create(['role' => 'owner']);
+        $token = $user->createToken('agent-token', ['*'])->plainTextToken;
+
+        $business = Business::create(['name' => 'Fashion Studio', 'slug' => 'fashion-studio', 'monthly_retainer' => 20000]);
+
+        $response = $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson('/api/v1/contents', [
+                'business_id' => $business->id,
+                'title' => 'Plural Endpoint Test Content',
+                'type' => 'post',
+                'stage' => 'idea',
+                'inspirations' => [
+                    [
+                        'url' => 'https://pinterest.com/pin/99999',
+                        'notes' => 'Minimalist typography layout',
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonCount(1, 'data.inspirations');
+
+        $contentId = $response->json('data.id');
+
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson("/api/v1/contents/{$contentId}/inspirations")
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+    }
 }
