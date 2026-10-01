@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\ContentItem;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -516,29 +517,41 @@ MARKDOWN;
         $rawAuthHeader = $request->header('Authorization');
         $xApiToken = $request->header('X-Api-Token');
         $xAgentToken = $request->header('X-Agent-Token');
-        $queryToken = $request->query('api_token') ?: $request->query('token');
+        $rawQuery = $request->query('api_token') ?: $request->query('token');
+        $queryToken = is_string($rawQuery) ? $rawQuery : null;
 
         $headerKeys = array_keys($request->headers->all());
 
         // Extract token using the same multi-source logic
         $token = $request->bearerToken();
-        if (! $token && $rawAuthHeader) {
+        if (! $token && is_string($rawAuthHeader)) {
             $token = $rawAuthHeader;
         }
-        if (! $token) {
-            $token = $xApiToken ?: $xAgentToken ?: $queryToken;
+        if (! $token && is_string($xApiToken)) {
+            $token = $xApiToken;
+        }
+        if (! $token && is_string($xAgentToken)) {
+            $token = $xAgentToken;
+        }
+        if (! $token && $queryToken) {
+            $token = $queryToken;
         }
         if (! $token) {
-            $token = $request->server('HTTP_AUTHORIZATION')
+            $serverAuth = $request->server('HTTP_AUTHORIZATION')
                 ?: $request->server('REDIRECT_HTTP_AUTHORIZATION')
                 ?: $request->server('REDIRECT_REDIRECT_HTTP_AUTHORIZATION');
+            if (is_string($serverAuth)) {
+                $token = $serverAuth;
+            }
         }
 
-        if ($token) {
-            $token = trim((string) $token, " \t\n\r\0\x0B\"'");
-            $token = preg_replace('/^(?:Bearer|Token)\s+/i', '', $token);
-            $token = preg_replace('/^(?:Bearer|Token)\s+/i', '', $token);
-            $token = trim($token, " \t\n\r\0\x0B\"'");
+        if (is_string($token)) {
+            $clean = trim($token, " \t\n\r\0\x0B\"'");
+            $clean = (string) preg_replace('/^(?:Bearer|Token)\s+/i', '', $clean);
+            $clean = (string) preg_replace('/^(?:Bearer|Token)\s+/i', '', $clean);
+            $token = trim($clean, " \t\n\r\0\x0B\"'");
+        } else {
+            $token = '';
         }
 
         if (empty($token)) {
@@ -584,12 +597,12 @@ MARKDOWN;
                 'message' => "Token '{$accessToken->name}' has expired.",
                 'diagnostic' => [
                     'token_name' => $accessToken->name,
-                    'expired_at' => $accessToken->expires_at?->toIso8601String(),
+                    'expired_at' => $accessToken->expires_at->toIso8601String(),
                 ],
             ], 401);
         }
 
-        if (! $user) {
+        if (! $user instanceof User) {
             return response()->json([
                 'status' => 'orphaned_token',
                 'authenticated' => false,

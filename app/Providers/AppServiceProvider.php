@@ -64,20 +64,23 @@ class AppServiceProvider extends ServiceProvider
 
             // 6. Try query string (?api_token=... or ?token=...)
             if (! $token) {
-                $token = $request->query('api_token') ?: $request->query('token');
+                $query = $request->query('api_token') ?: $request->query('token');
+                if (is_string($query)) {
+                    $token = $query;
+                }
             }
 
-            if (! $token) {
+            if (! is_string($token)) {
                 return null;
             }
 
             // Clean token: strip surrounding quotes, any "Bearer" / "Token" prefixes, and whitespace
-            $clean = trim((string) $token, " \t\n\r\0\x0B\"'");
-            $clean = preg_replace('/^(?:Bearer|Token)\s+/i', '', $clean);
-            $clean = preg_replace('/^(?:Bearer|Token)\s+/i', '', $clean);
+            $clean = trim($token, " \t\n\r\0\x0B\"'");
+            $clean = (string) preg_replace('/^(?:Bearer|Token)\s+/i', '', $clean);
+            $clean = (string) preg_replace('/^(?:Bearer|Token)\s+/i', '', $clean);
             $clean = trim($clean, " \t\n\r\0\x0B\"'");
 
-            return $clean ?: null;
+            return $clean !== '' ? $clean : null;
         });
     }
 
