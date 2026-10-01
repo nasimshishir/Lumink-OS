@@ -221,6 +221,197 @@ function EditTargetsDialog({
     );
 }
 
+// ─── EditBusinessDialog ───────────────────────────────────────────────────────
+
+function EditBusinessDialog({ business }: { business: Business }) {
+    const [open, setOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [form, setForm] = useState({
+        name: business.name,
+        primary_contact_name: business.primary_contact_name ?? '',
+        primary_contact_email: business.primary_contact_email ?? '',
+        primary_contact_phone: business.primary_contact_phone ?? '',
+        monthly_retainer: business.monthly_retainer,
+        agreement_start: business.agreement_start?.slice(0, 10) ?? '',
+        agreement_end: business.agreement_end?.slice(0, 10) ?? '',
+        drive_folder_url: business.drive_folder_url ?? '',
+    });
+
+    function openDialog() {
+        setForm({
+            name: business.name,
+            primary_contact_name: business.primary_contact_name ?? '',
+            primary_contact_email: business.primary_contact_email ?? '',
+            primary_contact_phone: business.primary_contact_phone ?? '',
+            monthly_retainer: business.monthly_retainer,
+            agreement_start: business.agreement_start?.slice(0, 10) ?? '',
+            agreement_end: business.agreement_end?.slice(0, 10) ?? '',
+            drive_folder_url: business.drive_folder_url ?? '',
+        });
+        setOpen(true);
+    }
+
+    function set(field: keyof typeof form) {
+        return (e: React.ChangeEvent<HTMLInputElement>) =>
+            setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    }
+
+    function save() {
+        setSaving(true);
+        router.patch(
+            `/businesses/${business.id}`,
+            {
+                name: form.name,
+                primary_contact_name: form.primary_contact_name || null,
+                primary_contact_email: form.primary_contact_email || null,
+                primary_contact_phone: form.primary_contact_phone || null,
+                monthly_retainer: form.monthly_retainer,
+                agreement_start: form.agreement_start || null,
+                agreement_end: form.agreement_end || null,
+                drive_folder_url: form.drive_folder_url || null,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => setOpen(false),
+                onFinish: () => setSaving(false),
+            },
+        );
+    }
+
+    return (
+        <>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={openDialog}
+                className="gap-1.5"
+            >
+                <Pencil className="size-3.5" />
+                Edit info
+            </Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Edit business info</DialogTitle>
+                        <DialogDescription>
+                            Update contact details, agreement dates, and
+                            retainer for {business.name}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4">
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="biz-name">Business name</Label>
+                            <Input
+                                id="biz-name"
+                                value={form.name}
+                                onChange={set('name')}
+                                required
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="biz-contact-name">
+                                    Contact name
+                                </Label>
+                                <Input
+                                    id="biz-contact-name"
+                                    placeholder="Full name"
+                                    value={form.primary_contact_name}
+                                    onChange={set('primary_contact_name')}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="biz-contact-phone">
+                                    Contact phone
+                                </Label>
+                                <Input
+                                    id="biz-contact-phone"
+                                    type="tel"
+                                    placeholder="+880..."
+                                    value={form.primary_contact_phone}
+                                    onChange={set('primary_contact_phone')}
+                                />
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="biz-contact-email">
+                                Contact email
+                            </Label>
+                            <Input
+                                id="biz-contact-email"
+                                type="email"
+                                placeholder="client@example.com"
+                                value={form.primary_contact_email}
+                                onChange={set('primary_contact_email')}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="biz-start">
+                                    Agreement start
+                                </Label>
+                                <Input
+                                    id="biz-start"
+                                    type="date"
+                                    value={form.agreement_start}
+                                    onChange={set('agreement_start')}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="biz-end">Agreement end</Label>
+                                <Input
+                                    id="biz-end"
+                                    type="date"
+                                    value={form.agreement_end}
+                                    onChange={set('agreement_end')}
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="biz-retainer">
+                                    Monthly retainer (৳)
+                                </Label>
+                                <Input
+                                    id="biz-retainer"
+                                    type="number"
+                                    min={0}
+                                    step={500}
+                                    value={form.monthly_retainer}
+                                    onChange={set('monthly_retainer')}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="biz-drive">
+                                    Drive folder URL
+                                </Label>
+                                <Input
+                                    id="biz-drive"
+                                    type="url"
+                                    placeholder="https://drive.google.com/..."
+                                    value={form.drive_folder_url}
+                                    onChange={set('drive_folder_url')}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button onClick={save} disabled={saving}>
+                            Save changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+}
+
 // ─── BusinessCalendar (inline for the tab) ───────────────────────────────────
 
 type CalendarEvent = {
@@ -590,6 +781,9 @@ export default function BusinessShow({
                                     <ExternalLink data-icon="inline-end" />
                                 </a>
                             </Button>
+                        )}
+                        {canManage && (
+                            <EditBusinessDialog business={business} />
                         )}
                         <AddContentDialog businessId={business.id} />
                         <AddTaskDialog businessId={business.id} users={users} />

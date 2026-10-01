@@ -120,19 +120,28 @@ export default function Integrations({
         }
     }
 
-    const agentPromptTemplate = `You are an AI Agent with direct authenticated access to Lumink OS (Agency OS).
+    const agentPromptTemplate = `You are an AI Agent with direct authenticated access to Lumink OS (Agency OS) — v1.1.0.
 API Base URL: ${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1
 Authentication: Send header 'Authorization: Bearer <YOUR_API_TOKEN>' on every request.
 
 Available Workflows:
-1. Discover client retainers & deliverable targets: GET /businesses
-2. Plan content & define tasks: POST /content (accepts 'tasks' array to set up tasks simultaneously)
-3. Connect Google Drive shot directory: PATCH /content/{id} with { "drive_folder_url": "...", "stage": "shot" }
-4. Track task completion: PATCH /tasks/{id} with { "status": "in_progress" | "done", "actual_minutes": 120 }
-5. Submit completed deliverable: PATCH /content/{id} with { "final_asset_url": "...", "stage": "client_review" }
+1. Discover client retainers, deliverable targets & Drive folders: GET /businesses
+   - Each business includes deliverable_targets (per-business, not default) and drive_folders_map.
+2. Update monthly delivery targets for a business: PATCH /businesses/{id}/targets
+   - Body: { "deliverable_targets": { "reels": N, "stories": N, "static": N, "shoots": N } }
+   - Owner/manager only. Always read current targets before planning — do not assume defaults.
+3. Plan content & define tasks: POST /content (accepts 'tasks' array to set up tasks simultaneously)
+   - Can include inspirations array of { url, notes } objects.
+4. Connect Google Drive shot directory: PATCH /content/{id} with { "drive_folder_url": "...", "stage": "shot" }
+5. Track task completion: PATCH /tasks/{id} with { "status": "in_progress" | "done", "actual_minutes": 120 }
+6. Submit completed deliverable: PATCH /content/{id} with { "final_asset_url": "...", "stage": "client_review" }
 
-Capabilities manifest: ${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/agent/capabilities
+IMPORTANT — Stage Proofs: Content stage transitions now require a human to submit proof (URL/image/notes) via the UI. You can PATCH the stage to signal intent, but the stage won't complete until proof is submitted by the team.
+
+Live capabilities manifest (always up to date): ${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/agent/capabilities
+Full operating manual (Markdown): ${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/agent/guide
 OpenAPI 3.0 Schema: ${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/openapi.json`;
+
 
     return (
         <>

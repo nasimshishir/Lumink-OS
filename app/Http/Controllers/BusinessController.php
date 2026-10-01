@@ -114,6 +114,7 @@ class BusinessController extends Controller
             'monthly_retainer' => ['sometimes', 'required', 'numeric', 'min:0'],
             'agreement_start' => ['nullable', 'date'],
             'agreement_end' => ['nullable', 'date'],
+            'drive_folder_url' => ['nullable', 'string', 'max:1000'],
             'deliverable_targets' => ['nullable', 'array'],
         ]);
 
