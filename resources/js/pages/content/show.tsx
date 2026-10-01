@@ -301,24 +301,27 @@ export default function ContentShow({
                             <div className="border-t p-4 md:border-t-0 md:border-l">
                                 <div className="flex items-center justify-between">
                                     <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                                        Stage Verification
+                                        Stage Pipeline
                                     </h3>
-                                    <span className="text-xs font-semibold text-primary">
+                                    <span className="text-xs font-semibold text-emerald-600">
                                         {content.proofs?.filter(
-                                            (p) => p.status === 'verified',
+                                            (p) =>
+                                                p.status === 'completed' ||
+                                                p.status === 'verified',
                                         ).length ?? 0}
-                                        /{stages.length} verified
+                                        /{stages.length} completed
                                     </span>
                                 </div>
                                 <div className="mt-3 flex flex-col gap-2.5">
                                     {stages.map((stage) => {
-                                        const isVerified = content.proofs?.some(
-                                            (p) =>
-                                                p.stage === stage &&
-                                                p.status === 'verified',
+                                        const proof = content.proofs?.find(
+                                            (p) => p.stage === stage,
                                         );
-                                        const isCurrent =
-                                            content.stage === stage;
+                                        const isCompleted =
+                                            proof?.status === 'completed' ||
+                                            proof?.status === 'verified';
+                                        const isInProgress =
+                                            proof?.status === 'in_progress';
 
                                         return (
                                             <div
@@ -326,36 +329,40 @@ export default function ContentShow({
                                                 className="flex items-center justify-between text-xs"
                                             >
                                                 <div className="flex items-center gap-2">
-                                                    {isVerified ? (
+                                                    {isCompleted ? (
                                                         <Check className="size-3.5 stroke-[2.5] text-emerald-600" />
-                                                    ) : isCurrent ? (
-                                                        <span className="size-2 animate-pulse rounded-full bg-primary" />
+                                                    ) : isInProgress ? (
+                                                        <span className="size-2 animate-pulse rounded-full bg-amber-500" />
                                                     ) : (
                                                         <span className="size-2 rounded-full border border-border" />
                                                     )}
                                                     <span
                                                         className={cn(
-                                                            isCurrent &&
-                                                                'font-semibold text-primary',
-                                                            isVerified &&
+                                                            isCompleted &&
                                                                 'font-medium text-foreground',
-                                                            !isCurrent &&
-                                                                !isVerified &&
+                                                            isInProgress &&
+                                                                'font-semibold text-amber-600 dark:text-amber-400',
+                                                            !isCompleted &&
+                                                                !isInProgress &&
                                                                 'text-muted-foreground',
                                                         )}
                                                     >
                                                         {humanize(stage)}
                                                     </span>
                                                 </div>
-                                                {isVerified ? (
+                                                {isCompleted ? (
                                                     <span className="text-[10px] font-medium text-emerald-600">
-                                                        Proof ✓
+                                                        Completed
                                                     </span>
-                                                ) : isCurrent ? (
-                                                    <span className="text-[10px] font-medium text-primary">
-                                                        Active
+                                                ) : isInProgress ? (
+                                                    <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                                                        In Progress
                                                     </span>
-                                                ) : null}
+                                                ) : (
+                                                    <span className="text-[10px] text-muted-foreground/60">
+                                                        Pending
+                                                    </span>
+                                                )}
                                             </div>
                                         );
                                     })}

@@ -18,10 +18,10 @@ class ContentInspirationController extends Controller
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'in:link,image,video,note'],
-            'url' => ['nullable', 'string', 'max:1000'],
+            'url' => ['nullable', 'required_if:type,link', 'url', 'max:1000'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'tags' => ['nullable', 'string', 'max:255'],
-            'image' => ['nullable', 'file', 'image', 'max:15360'], // 15MB
+            'image' => ['nullable', 'required_if:type,image', 'file', 'image', 'max:15360'], // 15MB
         ]);
 
         $imagePath = null;

@@ -556,7 +556,7 @@ function AddInspirationDialog({
                                 htmlFor="insp-url"
                                 className="text-xs font-semibold"
                             >
-                                Reference URL (Instagram, TikTok, YouTube, etc.)
+                                Reference URL (Instagram, TikTok, YouTube, etc.) *
                             </Label>
                             <Input
                                 id="insp-url"
@@ -564,6 +564,7 @@ function AddInspirationDialog({
                                 placeholder="https://instagram.com/reel/... or https://tiktok.com/@..."
                                 value={url}
                                 onChange={(e) => setUrl(e.target.value)}
+                                required
                                 className="h-9 text-xs"
                             />
                         </div>
@@ -576,13 +577,14 @@ function AddInspirationDialog({
                                 htmlFor="insp-image"
                                 className="text-xs font-semibold"
                             >
-                                Upload Screenshot or Image
+                                Upload Screenshot or Image *
                             </Label>
                             <Input
                                 id="insp-image"
                                 type="file"
                                 accept="image/*"
                                 onChange={handleFileSelect}
+                                required={!previewUrl}
                                 className="h-9 cursor-pointer text-xs file:text-xs file:font-semibold"
                             />
                             {previewUrl && (
@@ -655,7 +657,12 @@ function AddInspirationDialog({
                         <Button
                             type="submit"
                             size="sm"
-                            disabled={isSubmitting || !title.trim()}
+                            disabled={
+                                isSubmitting ||
+                                !title.trim() ||
+                                (type === 'link' && !url.trim()) ||
+                                (type === 'image' && !imageFile && !previewUrl)
+                            }
                             className="h-8 gap-1.5 text-xs"
                         >
                             {isSubmitting ? (

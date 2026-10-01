@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ContentStepProofController extends Controller
 {
@@ -19,17 +20,43 @@ class ContentStepProofController extends Controller
 
         $validated = $request->validate([
             'stage' => ['required', 'string', Rule::in(ContentItem::STAGES)],
-            'proof_url' => ['nullable', 'string', 'max:1000'],
+            'status' => ['required', 'string', 'in:pending,in_progress,completed,verified'],
+            'proof_url' => ['nullable', 'url', 'max:1000'],
             'notes' => ['nullable', 'string', 'max:5000'],
-            'status' => ['nullable', 'string', 'in:verified,pending,rejected'],
             'advance_stage' => ['nullable', 'boolean'],
             'files' => ['nullable', 'array'],
             'files.*' => ['file', 'max:25600'], // 25MB max per file
         ]);
 
         $stage = $validated['stage'];
-        $newAttachments = [];
+        $targetStatus = $validated['status'] === 'verified' ? ContentStepProof::STATUS_COMPLETED : $validated['status'];
 
+        /** @var ContentStepProof|null $existingProof */
+        $existingProof = $contentItem->proofs()->where('stage', $stage)->first();
+
+        // Enforce STRICT verification rules when completing a stage
+        if ($targetStatus === ContentStepProof::STATUS_COMPLETED) {
+            $errors = [];
+            $hasSubmittedUrl = ! empty($validated['proof_url']);
+            $hasSubmittedFiles = $request->hasFile('files') && count($request->file('files')) > 0;
+            $hasExistingUrl = $existingProof !== null && ! empty($existingProof->proof_url);
+            $hasExistingFiles = $existingProof !== null && ! empty($existingProof->attachments);
+
+            if (! $hasSubmittedUrl && ! $hasSubmittedFiles && ! $hasExistingUrl && ! $hasExistingFiles) {
+                $errors['proof_url'] = 'Verification proof is required to complete this stage. Please provide a valid proof link or attach a file/screenshot.';
+            }
+
+            $submittedNotes = trim($validated['notes'] ?? '');
+            if ($submittedNotes === '' && ($existingProof === null || empty($existingProof->notes))) {
+                $errors['notes'] = 'Please provide a completion summary or notes explaining what was completed.';
+            }
+
+            if (! empty($errors)) {
+                throw ValidationException::withMessages($errors);
+            }
+        }
+
+        $newAttachments = [];
         if ($request->hasFile('files')) {
             foreach ($request->file('files') as $file) {
                 if ($file->isValid()) {
@@ -47,27 +74,42 @@ class ContentStepProofController extends Controller
             }
         }
 
-        DB::transaction(function () use ($contentItem, $validated, $stage, $newAttachments, $request) {
+        DB::transaction(function () use ($contentItem, $validated, $stage, $targetStatus, $newAttachments, $request, $existingProof) {
             /** @var ContentStepProof $proof */
-            $proof = $contentItem->proofs()->firstOrNew(['stage' => $stage]);
+            $proof = $existingProof ?? $contentItem->proofs()->firstOrNew(['stage' => $stage]);
 
             $existingAttachments = $proof->attachments ?? [];
             $allAttachments = array_merge($existingAttachments, $newAttachments);
 
-            $proof->fill([
-                'user_id' => $request->user()->id,
-                'status' => $validated['status'] ?? 'verified',
-                'proof_url' => $validated['proof_url'] ?? $proof->proof_url,
-                'notes' => $validated['notes'] ?? $proof->notes,
-                'attachments' => empty($allAttachments) ? null : array_values($allAttachments),
-                'verified_at' => now(),
-            ]);
+            if ($targetStatus === ContentStepProof::STATUS_COMPLETED) {
+                $proof->fill([
+                    'user_id' => $request->user()->id,
+                    'status' => ContentStepProof::STATUS_COMPLETED,
+                    'proof_url' => $validated['proof_url'] ?? $proof->proof_url,
+                    'notes' => ! empty($validated['notes']) ? $validated['notes'] : $proof->notes,
+                    'attachments' => empty($allAttachments) ? null : array_values($allAttachments),
+                    'verified_at' => now(),
+                ]);
+            } elseif ($targetStatus === ContentStepProof::STATUS_IN_PROGRESS) {
+                $proof->fill([
+                    'user_id' => $request->user()->id,
+                    'status' => ContentStepProof::STATUS_IN_PROGRESS,
+                    'notes' => ! empty($validated['notes']) ? $validated['notes'] : $proof->notes,
+                    'verified_at' => null,
+                ]);
+            } else { // pending
+                $proof->fill([
+                    'user_id' => null,
+                    'status' => ContentStepProof::STATUS_PENDING,
+                    'verified_at' => null,
+                ]);
+            }
 
             $proof->save();
 
-            // Advance or sync stage and asset fields if requested (default true)
+            // Advance or sync deliverable stage if requested
             $advance = $request->boolean('advance_stage', true);
-            if ($advance) {
+            if ($advance && in_array($targetStatus, [ContentStepProof::STATUS_IN_PROGRESS, ContentStepProof::STATUS_COMPLETED], true)) {
                 $currentIndex = array_search($contentItem->stage, ContentItem::STAGES, true);
                 $stageIndex = array_search($stage, ContentItem::STAGES, true);
 
@@ -76,8 +118,8 @@ class ContentStepProofController extends Controller
                 }
             }
 
-            // Auto-populate asset URLs if stage provided footage or asset link
-            if (! empty($proof->proof_url)) {
+            // Auto-populate asset URLs if completed stage provided footage or asset link
+            if ($targetStatus === ContentStepProof::STATUS_COMPLETED && ! empty($proof->proof_url)) {
                 if (in_array($stage, ['shot', 'shoot_scheduled'], true) && empty($contentItem->raw_footage_url)) {
                     $contentItem->raw_footage_url = $proof->proof_url;
                 } elseif (in_array($stage, ['editing', 'internal_review', 'approved'], true) && empty($contentItem->final_asset_url)) {
@@ -89,11 +131,12 @@ class ContentStepProofController extends Controller
 
             AuditEvent::create([
                 'user_id' => $request->user()->id,
-                'event' => 'content.stage_proof_submitted',
+                'event' => 'content.stage_status_updated',
                 'auditable_type' => ContentItem::class,
                 'auditable_id' => $contentItem->id,
                 'metadata' => [
                     'stage' => $stage,
+                    'status' => $targetStatus,
                     'proof_id' => $proof->id,
                     'proof_url' => $proof->proof_url,
                     'attachments_count' => count($allAttachments),
@@ -101,7 +144,14 @@ class ContentStepProofController extends Controller
             ]);
         });
 
-        return back()->with('success', "Verification proof for stage '".str_replace('_', ' ', $stage)."' submitted successfully.");
+        $stageName = ucwords(str_replace('_', ' ', $stage));
+        $statusMsg = match ($targetStatus) {
+            ContentStepProof::STATUS_COMPLETED => "Stage '{$stageName}' marked as completed with verified proof.",
+            ContentStepProof::STATUS_IN_PROGRESS => "Stage '{$stageName}' is now in progress.",
+            default => "Stage '{$stageName}' set to pending.",
+        };
+
+        return back()->with('success', $statusMsg);
     }
 
     public function destroy(Request $request, ContentItem $contentItem, ContentStepProof $proof): RedirectResponse
@@ -128,6 +178,6 @@ class ContentStepProofController extends Controller
             'metadata' => ['stage' => $stage],
         ]);
 
-        return back()->with('success', "Proof for stage '".str_replace('_', ' ', $stage)."' deleted.");
+        return back()->with('success', "Stage '".str_replace('_', ' ', $stage)."' reset to pending.");
     }
 }

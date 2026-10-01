@@ -24,6 +24,18 @@ use Illuminate\Support\Carbon;
  */
 class ContentStepProof extends Model
 {
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_IN_PROGRESS = 'in_progress';
+
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUSES = [
+        self::STATUS_PENDING,
+        self::STATUS_IN_PROGRESS,
+        self::STATUS_COMPLETED,
+    ];
+
     protected $guarded = [];
 
     protected function casts(): array
@@ -45,5 +57,20 @@ class ContentStepProof extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function isCompleted(): bool
+    {
+        return in_array($this->status, [self::STATUS_COMPLETED, 'verified'], true);
+    }
+
+    public function isInProgress(): bool
+    {
+        return $this->status === self::STATUS_IN_PROGRESS;
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
     }
 }

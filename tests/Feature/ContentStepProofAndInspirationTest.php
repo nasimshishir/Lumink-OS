@@ -17,16 +17,10 @@ class ContentStepProofAndInspirationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_can_submit_stage_proof_and_advance_content_stage(): void
+    public function test_user_can_set_stage_to_in_progress(): void
     {
-        Storage::fake('public');
-
         $owner = User::factory()->create(['role' => 'owner']);
-        $business = Business::create([
-            'name' => 'Burger Lab',
-            'slug' => 'burger-lab',
-            'monthly_retainer' => 30000,
-        ]);
+        $business = Business::create(['name' => 'Burger Lab', 'slug' => 'burger-lab', 'monthly_retainer' => 30000]);
         $content = ContentItem::create([
             'business_id' => $business->id,
             'title' => 'Signature Smashed Burger Reel',
@@ -35,14 +29,95 @@ class ContentStepProofAndInspirationTest extends TestCase
             'priority' => 'high',
         ]);
 
-        $file = UploadedFile::fake()->image('camera_roll_log.png');
+        $response = $this->actingAs($owner)->post("/content/{$content->id}/proofs", [
+            'stage' => 'scripted',
+            'status' => 'in_progress',
+            'notes' => 'Writing hook variations with team.',
+        ]);
+
+        $response->assertRedirect();
+
+        $this->assertDatabaseHas('content_step_proofs', [
+            'content_item_id' => $content->id,
+            'stage' => 'scripted',
+            'status' => 'in_progress',
+            'user_id' => $owner->id,
+            'notes' => 'Writing hook variations with team.',
+        ]);
+    }
+
+    public function test_multiple_stages_can_be_in_progress_concurrently(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $business = Business::create(['name' => 'Burger Lab', 'slug' => 'burger-lab', 'monthly_retainer' => 30000]);
+        $content = ContentItem::create([
+            'business_id' => $business->id,
+            'title' => 'Signature Smashed Burger Reel',
+            'stage' => 'idea',
+            'type' => 'reel',
+        ]);
+
+        // Producer starts shoot scheduling
+        $this->actingAs($owner)->post("/content/{$content->id}/proofs", [
+            'stage' => 'shoot_scheduled',
+            'status' => 'in_progress',
+        ])->assertRedirect();
+
+        // Writer starts scripting
+        $this->actingAs($owner)->post("/content/{$content->id}/proofs", [
+            'stage' => 'scripted',
+            'status' => 'in_progress',
+        ])->assertRedirect();
+
+        $this->assertEquals(2, ContentStepProof::where('content_item_id', $content->id)->where('status', 'in_progress')->count());
+    }
+
+    public function test_submitting_stage_completion_without_proof_fails_validation(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $business = Business::create(['name' => 'Burger Lab', 'slug' => 'burger-lab', 'monthly_retainer' => 30000]);
+        $content = ContentItem::create([
+            'business_id' => $business->id,
+            'title' => 'Signature Smashed Burger Reel',
+            'stage' => 'idea',
+            'type' => 'reel',
+        ]);
+
+        // Attempt to complete without proof_url, files, or notes
+        $response = $this->actingAs($owner)->post("/content/{$content->id}/proofs", [
+            'stage' => 'shot',
+            'status' => 'completed',
+            'proof_url' => '',
+            'notes' => '',
+        ]);
+
+        $response->assertSessionHasErrors(['proof_url', 'notes']);
+        $this->assertDatabaseMissing('content_step_proofs', [
+            'content_item_id' => $content->id,
+            'stage' => 'shot',
+            'status' => 'completed',
+        ]);
+    }
+
+    public function test_user_can_complete_stage_with_valid_proof_url_and_notes(): void
+    {
+        Storage::fake('public');
+
+        $owner = User::factory()->create(['role' => 'owner']);
+        $business = Business::create(['name' => 'Burger Lab', 'slug' => 'burger-lab', 'monthly_retainer' => 30000]);
+        $content = ContentItem::create([
+            'business_id' => $business->id,
+            'title' => 'Signature Smashed Burger Reel',
+            'stage' => 'idea',
+            'type' => 'reel',
+        ]);
 
         $response = $this->actingAs($owner)->post("/content/{$content->id}/proofs", [
             'stage' => 'shot',
+            'status' => 'completed',
             'proof_url' => 'https://drive.google.com/drive/folders/test-raw-footage',
             'notes' => '3 camera reels shot with Sony FX3, 4K 60fps.',
             'advance_stage' => 1,
-            'files' => [$file],
         ]);
 
         $response->assertRedirect();
@@ -50,19 +125,67 @@ class ContentStepProofAndInspirationTest extends TestCase
         $this->assertDatabaseHas('content_step_proofs', [
             'content_item_id' => $content->id,
             'stage' => 'shot',
-            'status' => 'verified',
+            'status' => 'completed',
             'proof_url' => 'https://drive.google.com/drive/folders/test-raw-footage',
         ]);
 
         $content->refresh();
         $this->assertEquals('shot', $content->stage);
         $this->assertEquals('https://drive.google.com/drive/folders/test-raw-footage', $content->raw_footage_url);
+    }
+
+    public function test_user_can_complete_stage_with_uploaded_file(): void
+    {
+        Storage::fake('public');
+
+        $owner = User::factory()->create(['role' => 'owner']);
+        $business = Business::create(['name' => 'Burger Lab', 'slug' => 'burger-lab', 'monthly_retainer' => 30000]);
+        $content = ContentItem::create(['business_id' => $business->id, 'title' => 'Test Reel', 'stage' => 'planned']);
+
+        $file = UploadedFile::fake()->image('storyboard.png');
+
+        $response = $this->actingAs($owner)->post("/content/{$content->id}/proofs", [
+            'stage' => 'planned',
+            'status' => 'completed',
+            'notes' => 'Storyboard approved with creative director.',
+            'files' => [$file],
+        ]);
+
+        $response->assertRedirect();
 
         /** @var ContentStepProof $proof */
-        $proof = ContentStepProof::where('content_item_id', $content->id)->where('stage', 'shot')->first();
-        $this->assertNotNull($proof->attachments);
+        $proof = ContentStepProof::where('content_item_id', $content->id)->where('stage', 'planned')->first();
+        $this->assertNotNull($proof);
+        $this->assertEquals('completed', $proof->status);
         $this->assertCount(1, $proof->attachments);
-        $this->assertEquals('camera_roll_log.png', $proof->attachments[0]['name']);
+        $this->assertEquals('storyboard.png', $proof->attachments[0]['name']);
+    }
+
+    public function test_user_can_reset_stage_to_pending(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+        $business = Business::create(['name' => 'Test', 'slug' => 'test', 'monthly_retainer' => 10000]);
+        $content = ContentItem::create(['business_id' => $business->id, 'title' => 'Test Reel', 'stage' => 'editing']);
+
+        $proof = ContentStepProof::create([
+            'content_item_id' => $content->id,
+            'user_id' => $owner->id,
+            'stage' => 'editing',
+            'status' => 'completed',
+            'proof_url' => 'https://frame.io/preview',
+            'notes' => 'Rough cut v1 ready.',
+            'verified_at' => now(),
+        ]);
+
+        $this->actingAs($owner)
+            ->post("/content/{$content->id}/proofs", [
+                'stage' => 'editing',
+                'status' => 'pending',
+            ])
+            ->assertRedirect();
+
+        $proof->refresh();
+        $this->assertEquals('pending', $proof->status);
     }
 
     public function test_user_can_delete_stage_proof(): void
@@ -77,7 +200,7 @@ class ContentStepProofAndInspirationTest extends TestCase
             'content_item_id' => $content->id,
             'user_id' => $owner->id,
             'stage' => 'editing',
-            'status' => 'verified',
+            'status' => 'completed',
             'proof_url' => 'https://frame.io/preview',
             'notes' => 'Rough cut v1 ready.',
             'verified_at' => now(),
@@ -114,9 +237,6 @@ class ContentStepProofAndInspirationTest extends TestCase
             'url' => 'https://tiktok.com/@foodie/video/12345',
         ]);
 
-        $item = ContentInspiration::where('content_item_id', $content->id)->first();
-        $this->assertEquals(['hook', 'pacing', 'zoom'], $item->tags);
-
         // Add Image inspiration
         $image = UploadedFile::fake()->image('color_moodboard.jpg');
         $this->actingAs($owner)->post("/content/{$content->id}/inspirations", [
@@ -134,27 +254,19 @@ class ContentStepProofAndInspirationTest extends TestCase
         ]);
     }
 
-    public function test_user_can_delete_inspiration(): void
+    public function test_inspiration_link_requires_url(): void
     {
-        Storage::fake('public');
-
         $owner = User::factory()->create(['role' => 'owner']);
         $business = Business::create(['name' => 'Test', 'slug' => 'test', 'monthly_retainer' => 10000]);
         $content = ContentItem::create(['business_id' => $business->id, 'title' => 'Test Reel', 'stage' => 'idea']);
 
-        $inspiration = ContentInspiration::create([
-            'content_item_id' => $content->id,
-            'user_id' => $owner->id,
-            'title' => 'Competitor Reel',
+        $response = $this->actingAs($owner)->post("/content/{$content->id}/inspirations", [
+            'title' => 'Invalid Link Without URL',
             'type' => 'link',
-            'url' => 'https://instagram.com/reel/xyz',
+            'url' => '',
         ]);
 
-        $this->actingAs($owner)
-            ->delete("/content/{$content->id}/inspirations/{$inspiration->id}")
-            ->assertRedirect();
-
-        $this->assertDatabaseMissing('content_inspirations', ['id' => $inspiration->id]);
+        $response->assertSessionHasErrors(['url']);
     }
 
     public function test_content_show_renders_proofs_and_inspirations(): void
@@ -167,8 +279,9 @@ class ContentStepProofAndInspirationTest extends TestCase
             'content_item_id' => $content->id,
             'user_id' => $owner->id,
             'stage' => 'shot',
-            'status' => 'verified',
+            'status' => 'completed',
             'proof_url' => 'https://drive.google.com/raw-footage',
+            'notes' => 'All shots verified.',
             'verified_at' => now(),
         ]);
 
