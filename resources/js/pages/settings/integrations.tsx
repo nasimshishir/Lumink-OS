@@ -122,7 +122,8 @@ export default function Integrations({
 
     const agentPromptTemplate = `You are an AI Agent with direct authenticated access to Lumink OS (Agency OS) — v1.1.0.
 API Base URL: ${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1
-Authentication: Send header 'Authorization: Bearer <YOUR_API_TOKEN>' on every request.
+Authentication: Send header 'Authorization: Bearer <YOUR_API_TOKEN>' or 'X-Api-Token: <YOUR_API_TOKEN>' on every request.
+Token self-test: GET ${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/agent/token-test
 
 Available Workflows:
 1. Discover client retainers, deliverable targets & Drive folders: GET /businesses
@@ -163,7 +164,9 @@ OpenAPI 3.0 Schema: ${typeof window !== 'undefined' ? window.location.origin : '
                         </div>
                         <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
                             Make sure to copy this token now. For your security,
-                            it will never be displayed again.
+                            it will never be displayed again. Header:{' '}
+                            <code className="font-mono">Authorization: Bearer &lt;token&gt;</code> or{' '}
+                            <code className="font-mono">X-Api-Token: &lt;token&gt;</code>.
                         </p>
                         <div className="mt-3 flex items-center gap-2">
                             <input

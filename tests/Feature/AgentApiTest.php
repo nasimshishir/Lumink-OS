@@ -481,4 +481,65 @@ class AgentApiTest extends TestCase
             ->assertJsonPath('data.content_item.primary_shoot.drive_folder_url', 'https://drive.google.com/drive/folders/shoots-archive-chef-table')
             ->assertJsonPath('data.content_item.referenced_shoots.0.drive_folder_url', 'https://drive.google.com/drive/folders/shoots-archive-grill-sizzle');
     }
+
+    public function test_token_diagnostics_endpoint_returns_accurate_debug_info(): void
+    {
+        // 1. Without token
+        $this->getJson('/api/v1/agent/token-test')
+            ->assertStatus(401)
+            ->assertJsonPath('status', 'unauthenticated')
+            ->assertJsonPath('authenticated', false);
+
+        // 2. With invalid token
+        $this->withHeader('Authorization', 'Bearer 9999|invalidtokensecret')
+            ->getJson('/api/v1/agent/token-test')
+            ->assertStatus(401)
+            ->assertJsonPath('status', 'invalid_token');
+
+        // 3. With valid token
+        $user = User::factory()->create(['role' => 'owner', 'name' => 'Agent Master']);
+        $token = $user->createToken('active-token', ['*'])->plainTextToken;
+
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson('/api/v1/agent/token-test')
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('authenticated', true)
+            ->assertJsonPath('user.name', 'Agent Master');
+    }
+
+    public function test_resilient_token_retrieval_handles_custom_headers_and_malformed_formats(): void
+    {
+        $user = User::factory()->create(['role' => 'owner']);
+        $token = $user->createToken('robust-agent', ['*'])->plainTextToken;
+
+        // A. X-Api-Token header (bypasses Apache header stripping)
+        $this->withHeader('X-Api-Token', $token)
+            ->getJson('/api/v1/user')
+            ->assertOk()
+            ->assertJsonPath('user.id', $user->id);
+
+        // B. X-Agent-Token header
+        $this->withHeader('X-Agent-Token', $token)
+            ->getJson('/api/v1/user')
+            ->assertOk()
+            ->assertJsonPath('user.id', $user->id);
+
+        // C. Token passed with surrounding whitespace or repeated Bearer
+        $this->withHeader('Authorization', "Bearer   {$token}  ")
+            ->getJson('/api/v1/user')
+            ->assertOk()
+            ->assertJsonPath('user.id', $user->id);
+
+        // D. Token passed in query parameter ?api_token=
+        $this->getJson("/api/v1/user?api_token={$token}")
+            ->assertOk()
+            ->assertJsonPath('user.id', $user->id);
+
+        // E. Unversioned API route (/api/businesses alias)
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->getJson('/api/businesses')
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+    }
 }

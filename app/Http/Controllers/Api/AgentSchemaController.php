@@ -8,6 +8,7 @@ use App\Models\ContentItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AgentSchemaController extends Controller
 {
@@ -45,7 +46,10 @@ class AgentSchemaController extends Controller
             'agent_role' => 'Content Strategist, Task Planner, and Asset Coordinator',
             'auth' => [
                 'type' => 'Bearer Token',
-                'header' => 'Authorization: Bearer <your-agent-token>',
+                'primary_header' => 'Authorization: Bearer <your-agent-token>',
+                'alternative_header' => 'X-Api-Token: <your-agent-token>',
+                'query_param_fallback' => '?api_token=<your-agent-token>',
+                'diagnostic_endpoint' => 'GET /api/v1/agent/token-test',
             ],
             'workflows' => [
                 '1_strategy_discovery' => [
@@ -436,7 +440,8 @@ class AgentSchemaController extends Controller
 
 You are an AI Agent with direct authenticated access to Lumink OS (Agency Management System).
 Base URL: `{$baseUrl}`
-Authentication: Send `Authorization: Bearer <your_token>` on every request.
+Authentication: Send `Authorization: Bearer <your_token>` or `X-Api-Token: <your_token>` on every request.
+Token Diagnostic: `GET {$baseUrl}/agent/token-test` to verify token reception and validity.
 
 ## What Changed in v1.1.0
 - **Delivery targets are per-business and editable** — always read `deliverable_targets` from `GET /businesses` before planning; do not assume defaults.
@@ -500,5 +505,117 @@ Full capabilities manifest (JSON): `GET /agent/capabilities`
 MARKDOWN;
 
         return response($markdown, 200, ['Content-Type' => 'text/markdown; charset=UTF-8']);
+    }
+
+    /**
+     * Diagnostic endpoint for agents and users to verify token transmission & validity.
+     * Can be called with or without auth headers to diagnose server / header stripping issues.
+     */
+    public function testToken(Request $request): JsonResponse
+    {
+        $rawAuthHeader = $request->header('Authorization');
+        $xApiToken = $request->header('X-Api-Token');
+        $xAgentToken = $request->header('X-Agent-Token');
+        $queryToken = $request->query('api_token') ?: $request->query('token');
+
+        $headerKeys = array_keys($request->headers->all());
+
+        // Extract token using the same multi-source logic
+        $token = $request->bearerToken();
+        if (! $token && $rawAuthHeader) {
+            $token = $rawAuthHeader;
+        }
+        if (! $token) {
+            $token = $xApiToken ?: $xAgentToken ?: $queryToken;
+        }
+        if (! $token) {
+            $token = $request->server('HTTP_AUTHORIZATION')
+                ?: $request->server('REDIRECT_HTTP_AUTHORIZATION')
+                ?: $request->server('REDIRECT_REDIRECT_HTTP_AUTHORIZATION');
+        }
+
+        if ($token) {
+            $token = trim((string) $token, " \t\n\r\0\x0B\"'");
+            $token = preg_replace('/^(?:Bearer|Token)\s+/i', '', $token);
+            $token = preg_replace('/^(?:Bearer|Token)\s+/i', '', $token);
+            $token = trim($token, " \t\n\r\0\x0B\"'");
+        }
+
+        if (empty($token)) {
+            return response()->json([
+                'status' => 'unauthenticated',
+                'authenticated' => false,
+                'message' => 'No API token detected in the incoming request.',
+                'diagnostic' => [
+                    'authorization_header_received' => ! empty($rawAuthHeader),
+                    'x_api_token_received' => ! empty($xApiToken),
+                    'x_agent_token_received' => ! empty($xAgentToken),
+                    'query_token_received' => ! empty($queryToken),
+                    'headers_detected_by_server' => $headerKeys,
+                    'hint' => 'If your client sent Authorization: Bearer <token> but authorization_header_received is false, the web server is stripping the Authorization header. Use `X-Api-Token: <token>` instead.',
+                ],
+            ], 401);
+        }
+
+        /** @var PersonalAccessToken|null $accessToken */
+        $accessToken = PersonalAccessToken::findToken($token);
+
+        if (! $accessToken) {
+            return response()->json([
+                'status' => 'invalid_token',
+                'authenticated' => false,
+                'message' => 'Token was received, but does not match any active token in Lumink OS.',
+                'diagnostic' => [
+                    'token_format' => str_contains($token, '|') ? 'valid_prefixed_token' : 'invalid_format',
+                    'token_prefix_id' => str_contains($token, '|') ? explode('|', $token, 2)[0] : null,
+                    'token_length' => strlen($token),
+                    'hint' => 'Ensure you copied the entire token string including the ID prefix (e.g. 1|...) with no missing characters.',
+                ],
+            ], 401);
+        }
+
+        $user = $accessToken->tokenable;
+        $isExpired = $accessToken->expires_at && $accessToken->expires_at->isPast();
+
+        if ($isExpired) {
+            return response()->json([
+                'status' => 'expired_token',
+                'authenticated' => false,
+                'message' => "Token '{$accessToken->name}' has expired.",
+                'diagnostic' => [
+                    'token_name' => $accessToken->name,
+                    'expired_at' => $accessToken->expires_at?->toIso8601String(),
+                ],
+            ], 401);
+        }
+
+        if (! $user) {
+            return response()->json([
+                'status' => 'orphaned_token',
+                'authenticated' => false,
+                'message' => 'The user associated with this token no longer exists.',
+            ], 401);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'authenticated' => true,
+            'message' => 'API token is valid and active.',
+            'token' => [
+                'id' => $accessToken->id,
+                'name' => $accessToken->name,
+                'abilities' => $accessToken->abilities,
+                'last_used_at' => $accessToken->last_used_at?->toIso8601String(),
+                'expires_at' => $accessToken->expires_at?->toIso8601String(),
+            ],
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'is_active' => (bool) $user->is_active,
+                'can_manage_operations' => $user->canManageOperations(),
+            ],
+        ]);
     }
 }
