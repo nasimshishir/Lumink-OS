@@ -1,11 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowRight, Search } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { Search } from 'lucide-react';
 import { useState } from 'react';
 import { AddContentDialog } from '@/components/add-content-dialog';
 import { DeleteContentDialog } from '@/components/delete-content-dialog';
 import { PageHeading } from '@/components/page-heading';
 import { StatusBadge } from '@/components/status-badge';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -167,12 +166,18 @@ export default function ContentIndex({
                                 <th>Owner</th>
                                 <th>Publish</th>
                                 <th>Stage</th>
-                                <th />
+                                <th className="text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredContent.map((item) => (
-                                <tr key={item.id}>
+                                <tr
+                                    key={item.id}
+                                    className="cursor-pointer transition-colors hover:bg-muted/50"
+                                    onClick={() =>
+                                        router.visit(`/content/${item.id}`)
+                                    }
+                                >
                                     <td>
                                         <p className="font-medium">
                                             {item.title}
@@ -188,21 +193,11 @@ export default function ContentIndex({
                                     <td>
                                         <StatusBadge value={item.stage} />
                                     </td>
-                                    <td className="text-right">
+                                    <td
+                                        className="text-right"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
                                         <div className="flex items-center justify-end gap-1.5">
-                                            <Button
-                                                asChild
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-8 gap-1 px-2 text-xs"
-                                            >
-                                                <Link
-                                                    href={`/content/${item.id}`}
-                                                >
-                                                    Open
-                                                    <ArrowRight data-icon="inline-end" />
-                                                </Link>
-                                            </Button>
                                             {(canManage || isOwner) && (
                                                 <DeleteContentDialog
                                                     contentId={item.id}

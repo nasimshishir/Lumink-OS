@@ -131,6 +131,7 @@ export default function ContentShow({
     const [platform, setPlatform] = useState(
         content.platform_versions[0]?.platform ?? 'instagram',
     );
+    const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
     const currentVersion = content.platform_versions.find(
         (item) => item.platform === platform,
     );
@@ -413,14 +414,18 @@ export default function ContentShow({
                             </thead>
                             <tbody>
                                 {content.tasks.map((task) => (
-                                    <tr key={task.id}>
+                                    <tr
+                                        key={task.id}
+                                        className="cursor-pointer transition-colors hover:bg-muted/50"
+                                        onClick={() => setTaskToEdit(task)}
+                                    >
                                         <td className="font-medium">
                                             {task.title}
                                         </td>
                                         <td>
                                             {task.owner?.name ?? 'Unassigned'}
                                         </td>
-                                        <td>
+                                        <td onClick={(e) => e.stopPropagation()}>
                                             <TaskStatusDropdown
                                                 taskId={task.id}
                                                 status={task.status}
@@ -438,47 +443,14 @@ export default function ContentShow({
                                             )}
                                             h
                                         </td>
-                                        <td className="text-right">
+                                        <td
+                                            className="text-right"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
                                             <div className="flex items-center justify-end gap-1.5">
                                                 <TaskAdvanceButton
                                                     taskId={task.id}
                                                     status={task.status}
-                                                />
-                                                <EditTaskDialog
-                                                    task={{
-                                                        ...task,
-                                                        type:
-                                                            task.type ??
-                                                            'general',
-                                                        priority:
-                                                            task.priority ??
-                                                            'medium',
-                                                        business_id:
-                                                            content.business.id,
-                                                        content_item: {
-                                                            id: content.id,
-                                                            title: content.title,
-                                                            drive_folder_url:
-                                                                content.drive_folder_url,
-                                                            raw_footage_url:
-                                                                content.raw_footage_url,
-                                                            final_asset_url:
-                                                                content.final_asset_url,
-                                                            primary_shoot:
-                                                                content.primary_shoot,
-                                                            referenced_shoots:
-                                                                referencedShoots,
-                                                        },
-                                                    }}
-                                                    businesses={[
-                                                        {
-                                                            id: content.business
-                                                                .id,
-                                                            name: content
-                                                                .business.name,
-                                                        },
-                                                    ]}
-                                                    users={users}
                                                 />
                                                 {(canManage || isOwner) && (
                                                     <DeleteTaskDialog
@@ -503,6 +475,41 @@ export default function ContentShow({
                                 )}
                             </tbody>
                         </table>
+                        {taskToEdit && (
+                            <EditTaskDialog
+                                task={{
+                                    ...taskToEdit,
+                                    type: taskToEdit.type ?? 'general',
+                                    priority: taskToEdit.priority ?? 'medium',
+                                    business_id: content.business.id,
+                                    content_item: {
+                                        id: content.id,
+                                        title: content.title,
+                                        drive_folder_url:
+                                            content.drive_folder_url,
+                                        raw_footage_url:
+                                            content.raw_footage_url,
+                                        final_asset_url:
+                                            content.final_asset_url,
+                                        primary_shoot: content.primary_shoot,
+                                        referenced_shoots: referencedShoots,
+                                    },
+                                }}
+                                businesses={[
+                                    {
+                                        id: content.business.id,
+                                        name: content.business.name,
+                                    },
+                                ]}
+                                users={users}
+                                open={Boolean(taskToEdit)}
+                                onOpenChange={(open) => {
+                                    if (!open) {
+                                        setTaskToEdit(null);
+                                    }
+                                }}
+                            />
+                        )}
                         <div className="grid grid-cols-3 border-t bg-muted/30 px-4 py-3 text-sm">
                             <div>
                                 <p className="lumink-label">Estimate</p>

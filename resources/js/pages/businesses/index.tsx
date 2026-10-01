@@ -1,6 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
-    ArrowRight,
     BriefcaseBusiness,
     Plus,
     Power,
@@ -344,7 +343,15 @@ export default function Businesses({
                             </thead>
                             <tbody>
                                 {displayedBusinesses.map((business) => (
-                                    <tr key={business.id}>
+                                    <tr
+                                        key={business.id}
+                                        className="cursor-pointer transition-colors hover:bg-muted/50"
+                                        onClick={() =>
+                                            router.visit(
+                                                `/businesses/${business.id}`,
+                                            )
+                                        }
+                                    >
                                         <td>
                                             <div className="flex items-center gap-3">
                                                 <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -375,21 +382,11 @@ export default function Businesses({
                                         </td>
                                         <td>{business.content_items_count}</td>
                                         <td>{business.tasks_count}</td>
-                                        <td className="text-right">
+                                        <td
+                                            className="text-right"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
                                             <div className="flex items-center justify-end gap-1.5">
-                                                <Button
-                                                    asChild
-                                                    variant="ghost"
-                                                    size="sm"
-                                                >
-                                                    <Link
-                                                        href={`/businesses/${business.id}`}
-                                                    >
-                                                        Open
-                                                        <ArrowRight data-icon="inline-end" />
-                                                    </Link>
-                                                </Button>
-
                                                 {canManage && (
                                                     <>
                                                         <Button

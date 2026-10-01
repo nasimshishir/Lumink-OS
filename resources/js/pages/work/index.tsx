@@ -1,4 +1,5 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import { DeleteTaskDialog } from '@/components/delete-task-dialog';
 import { EditTaskDialog } from '@/components/edit-task-dialog';
 import { PageHeading } from '@/components/page-heading';
@@ -22,7 +23,7 @@ type Task = {
     business?: { id: number; name: string } | null;
     owner_id?: number | null;
     owner?: { id: number; name: string } | null;
-    content_item?: { title: string };
+    content_item?: { id: number; title: string };
 };
 
 type Option = { id: number; name: string };
@@ -40,6 +41,8 @@ export default function MyWork({
     canManage?: boolean;
     isOwner?: boolean;
 }) {
+    const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
+
     return (
         <>
             <Head title="My Work" />
@@ -63,14 +66,28 @@ export default function MyWork({
                         </thead>
                         <tbody>
                             {tasks.map((task) => (
-                                <tr key={task.id}>
+                                <tr
+                                    key={task.id}
+                                    className="cursor-pointer transition-colors hover:bg-muted/50"
+                                    onClick={() => setTaskToEdit(task)}
+                                >
                                     <td>
                                         <p className="font-medium">
                                             {task.title}
                                         </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {task.content_item?.title}
-                                        </p>
+                                        {task.content_item && (
+                                            <p className="text-xs text-muted-foreground">
+                                                <Link
+                                                    href={`/content/${task.content_item.id}`}
+                                                    onClick={(e) =>
+                                                        e.stopPropagation()
+                                                    }
+                                                    className="hover:underline hover:text-foreground"
+                                                >
+                                                    {task.content_item.title}
+                                                </Link>
+                                            </p>
+                                        )}
                                     </td>
                                     <td>{task.business?.name ?? 'Agency'}</td>
                                     <td>{humanize(task.type)}</td>
@@ -81,23 +98,21 @@ export default function MyWork({
                                         )}
                                         h
                                     </td>
-                                    <td>
+                                    <td onClick={(e) => e.stopPropagation()}>
                                         <TaskStatusDropdown
                                             taskId={task.id}
                                             status={task.status}
                                             taskTitle={task.title}
                                         />
                                     </td>
-                                    <td className="text-right">
+                                    <td
+                                        className="text-right"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
                                         <div className="flex items-center justify-end gap-1.5">
                                             <TaskAdvanceButton
                                                 taskId={task.id}
                                                 status={task.status}
-                                            />
-                                            <EditTaskDialog
-                                                task={task}
-                                                businesses={businesses}
-                                                users={users}
                                             />
                                             {(canManage || isOwner) && (
                                                 <DeleteTaskDialog
@@ -122,6 +137,19 @@ export default function MyWork({
                             )}
                         </tbody>
                     </table>
+                    {taskToEdit && (
+                        <EditTaskDialog
+                            task={taskToEdit}
+                            businesses={businesses}
+                            users={users}
+                            open={Boolean(taskToEdit)}
+                            onOpenChange={(open) => {
+                                if (!open) {
+                                    setTaskToEdit(null);
+                                }
+                            }}
+                        />
+                    )}
                 </section>
             </main>
         </>

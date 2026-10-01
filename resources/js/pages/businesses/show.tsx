@@ -1,7 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
     AlertTriangle,
-    ArrowRight,
     CalendarDays,
     ExternalLink,
     Power,
@@ -105,6 +104,7 @@ export default function BusinessShow({
     };
 }) {
     const [activeTab, setActiveTab] = useState('Overview');
+    const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
     const [trashOpen, setTrashOpen] = useState(false);
     const [forceDeleteOpen, setForceDeleteOpen] = useState(false);
     const [actionInProgress, setActionInProgress] = useState(false);
@@ -382,7 +382,11 @@ export default function BusinessShow({
                                 </thead>
                                 <tbody>
                                     {business.tasks.map((task) => (
-                                        <tr key={task.id}>
+                                        <tr
+                                            key={task.id}
+                                            className="cursor-pointer transition-colors hover:bg-muted/50"
+                                            onClick={() => setTaskToEdit(task)}
+                                        >
                                             <td>{dateTime(task.due_at)}</td>
                                             <td>{humanize(task.type)}</td>
                                             <td className="font-medium">
@@ -392,35 +396,27 @@ export default function BusinessShow({
                                                 {task.owner?.name ??
                                                     'Unassigned'}
                                             </td>
-                                            <td>
+                                            <td
+                                                onClick={(e) =>
+                                                    e.stopPropagation()
+                                                }
+                                            >
                                                 <TaskStatusDropdown
                                                     taskId={task.id}
                                                     status={task.status}
                                                     taskTitle={task.title}
                                                 />
                                             </td>
-                                            <td className="text-right">
+                                            <td
+                                                className="text-right"
+                                                onClick={(e) =>
+                                                    e.stopPropagation()
+                                                }
+                                            >
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     <TaskAdvanceButton
                                                         taskId={task.id}
                                                         status={task.status}
-                                                    />
-                                                    <EditTaskDialog
-                                                        task={{
-                                                            ...task,
-                                                            business_id:
-                                                                business.id,
-                                                            priority:
-                                                                task.priority ??
-                                                                'medium',
-                                                        }}
-                                                        businesses={[
-                                                            {
-                                                                id: business.id,
-                                                                name: business.name,
-                                                            },
-                                                        ]}
-                                                        users={users}
                                                     />
                                                     {(canManage || isOwner) && (
                                                         <DeleteTaskDialog
@@ -447,6 +443,29 @@ export default function BusinessShow({
                                     )}
                                 </tbody>
                             </table>
+                            {taskToEdit && (
+                                <EditTaskDialog
+                                    task={{
+                                        ...taskToEdit,
+                                        business_id: business.id,
+                                        priority:
+                                            taskToEdit.priority ?? 'medium',
+                                    }}
+                                    businesses={[
+                                        {
+                                            id: business.id,
+                                            name: business.name,
+                                        },
+                                    ]}
+                                    users={users}
+                                    open={Boolean(taskToEdit)}
+                                    onOpenChange={(open) => {
+                                        if (!open) {
+                                            setTaskToEdit(null);
+                                        }
+                                    }}
+                                />
+                            )}
                         </section>
                     </div>
 
@@ -566,12 +585,17 @@ export default function BusinessShow({
                                     <th>Owner</th>
                                     <th>Publish</th>
                                     <th>Stage</th>
-                                    <th />
                                 </tr>
                             </thead>
                             <tbody>
                                 {business.content_items.map((item) => (
-                                    <tr key={item.id}>
+                                    <tr
+                                        key={item.id}
+                                        className="cursor-pointer transition-colors hover:bg-muted/50"
+                                        onClick={() =>
+                                            router.visit(`/content/${item.id}`)
+                                        }
+                                    >
                                         <td>
                                             <p className="font-medium">
                                                 {item.title}
@@ -592,26 +616,12 @@ export default function BusinessShow({
                                         <td>
                                             <StatusBadge value={item.stage} />
                                         </td>
-                                        <td>
-                                            <Button
-                                                asChild
-                                                variant="ghost"
-                                                size="sm"
-                                            >
-                                                <Link
-                                                    href={`/content/${item.id}`}
-                                                >
-                                                    Open{' '}
-                                                    <ArrowRight data-icon="inline-end" />
-                                                </Link>
-                                            </Button>
-                                        </td>
                                     </tr>
                                 ))}
                                 {business.content_items.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={6}
+                                            colSpan={5}
                                             className="py-8 text-center text-muted-foreground"
                                         >
                                             No content items yet.

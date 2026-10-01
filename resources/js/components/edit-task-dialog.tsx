@@ -1,6 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { ExternalLink, Pencil } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -70,13 +70,19 @@ export function EditTaskDialog({
     businesses = [],
     users = [],
     trigger,
+    open: controlledOpen,
+    onOpenChange: controlledOnOpenChange,
 }: {
     task: EditableTask;
     businesses?: Option[];
     users?: Option[];
     trigger?: React.ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }) {
-    const [open, setOpen] = useState(false);
+    const [internalOpen, setInternalOpen] = useState(false);
+    const isControlled = controlledOpen !== undefined;
+    const open = isControlled ? controlledOpen : internalOpen;
 
     // Format ISO string to datetime-local format (YYYY-MM-DDTHH:mm)
     const formatForInput = (dateStr?: string | null) => {
@@ -120,6 +126,32 @@ export function EditTaskDialog({
         actual_minutes: task.actual_minutes ?? 0,
     });
 
+    useEffect(() => {
+        if (open) {
+            form.setData({
+                title: task.title ?? '',
+                description: task.description ?? '',
+                business_id: task.business_id
+                    ? String(task.business_id)
+                    : task.business?.id
+                      ? String(task.business.id)
+                      : null,
+                owner_id: task.owner_id
+                    ? String(task.owner_id)
+                    : task.owner?.id
+                      ? String(task.owner.id)
+                      : null,
+                type: task.type ?? 'general',
+                priority: task.priority ?? 'medium',
+                status: task.status ?? 'todo',
+                due_at: formatForInput(task.due_at),
+                estimate_minutes: task.estimate_minutes ?? 0,
+                actual_minutes: task.actual_minutes ?? 0,
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [task.id, open]);
+
     function handleOpenChange(nextOpen: boolean) {
         if (nextOpen) {
             form.setData({
@@ -144,7 +176,11 @@ export function EditTaskDialog({
             });
         }
 
-        setOpen(nextOpen);
+        if (controlledOnOpenChange) {
+            controlledOnOpenChange(nextOpen);
+        } else {
+            setInternalOpen(nextOpen);
+        }
     }
 
     function submit(event: FormEvent) {
@@ -152,27 +188,29 @@ export function EditTaskDialog({
         form.patch(`/tasks/${task.id}`, {
             preserveScroll: true,
             onSuccess: () => {
-                setOpen(false);
+                handleOpenChange(false);
             },
         });
     }
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogTrigger asChild>
-                {trigger ? (
-                    trigger
-                ) : (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 gap-1 px-2 text-xs"
-                    >
-                        <Pencil className="size-3.5" />
-                        <span>Edit</span>
-                    </Button>
-                )}
-            </DialogTrigger>
+            {(!isControlled || trigger) && trigger !== null && (
+                <DialogTrigger asChild>
+                    {trigger ? (
+                        trigger
+                    ) : (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 gap-1 px-2 text-xs"
+                        >
+                            <Pencil className="size-3.5" />
+                            <span>Edit</span>
+                        </Button>
+                    )}
+                </DialogTrigger>
+            )}
             <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
                 <form onSubmit={submit} className="flex flex-col gap-4">
                     <DialogHeader>
@@ -621,7 +659,7 @@ export function EditTaskDialog({
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => setOpen(false)}
+                            onClick={() => handleOpenChange(false)}
                         >
                             Cancel
                         </Button>
