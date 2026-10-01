@@ -2,13 +2,19 @@ import { Head, Link, router } from '@inertiajs/react';
 import {
     AlertTriangle,
     CalendarDays,
+    ChevronLeft,
+    ChevronRight,
     ExternalLink,
+    FolderOpen,
+    Pencil,
     Power,
     PowerOff,
     Target,
     Trash2,
+    TrendingDown,
+    TrendingUp,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AddContentDialog } from '@/components/add-content-dialog';
 import { AddTaskDialog } from '@/components/add-task-dialog';
 import { DeleteTaskDialog } from '@/components/delete-task-dialog';
@@ -27,6 +33,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { dateTime, humanize, money, shortDate } from '@/lib/format';
 
 type Campaign = {
@@ -45,6 +53,7 @@ type Content = {
     type: string;
     publish_at?: string;
     owner?: { name: string };
+    drive_folder_url?: string;
 };
 type Task = {
     id: number;
@@ -65,6 +74,28 @@ type Period = {
     ends_on: string;
     sales_change_percent?: string;
     notes?: string;
+    metrics?: Record<string, string | number>;
+};
+type Payment = {
+    id: number;
+    amount: string;
+    paid_on: string;
+};
+type Invoice = {
+    id: number;
+    number: string;
+    status: string;
+    issue_date: string;
+    due_date: string;
+    total: string;
+    payments?: Payment[];
+};
+type Expense = {
+    id: number;
+    category: string;
+    amount: string;
+    spent_on: string;
+    description?: string;
 };
 type Business = {
     id: number;
@@ -79,12 +110,282 @@ type Business = {
     agreement_end?: string;
     approval_deadline_hours: number;
     drive_folder_url?: string;
+    drive_folders_map?: Record<string, string>;
     deliverable_targets?: Record<string, number>;
     campaigns: Campaign[];
     content_items: Content[];
     tasks: Task[];
     performance_periods: Period[];
+    invoices?: Invoice[];
+    expenses?: Expense[];
 };
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function isSameDay(a: Date, b: Date) {
+    return (
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate()
+    );
+}
+
+// ─── EditTargetsDialog ────────────────────────────────────────────────────────
+
+function EditTargetsDialog({
+    business,
+}: {
+    business: Business;
+}) {
+    const [open, setOpen] = useState(false);
+    const defaults = business.deliverable_targets ?? {};
+    const [reels, setReels] = useState(String(defaults.reels ?? 10));
+    const [stories, setStories] = useState(String(defaults.stories ?? 12));
+    const [statics, setStatics] = useState(String(defaults.static ?? 4));
+    const [shoots, setShoots] = useState(String(defaults.shoots ?? 4));
+    const [saving, setSaving] = useState(false);
+
+    function save() {
+        setSaving(true);
+        router.patch(
+            `/businesses/${business.id}`,
+            {
+                deliverable_targets: {
+                    reels: Number(reels),
+                    stories: Number(stories),
+                    static: Number(statics),
+                    shoots: Number(shoots),
+                },
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => setOpen(false),
+                onFinish: () => setSaving(false),
+            },
+        );
+    }
+
+    return (
+        <>
+            <button
+                onClick={() => setOpen(true)}
+                className="text-muted-foreground hover:text-foreground"
+                title="Edit monthly targets"
+            >
+                <Pencil className="size-3.5" />
+            </button>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit monthly delivery targets</DialogTitle>
+                        <DialogDescription>
+                            Set the expected number of deliverables per content
+                            type for {business.name} each month.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-2 gap-4">
+                        {[
+                            { label: 'Reels', value: reels, set: setReels },
+                            { label: 'Stories', value: stories, set: setStories },
+                            { label: 'Statics', value: statics, set: setStatics },
+                            { label: 'Shoots', value: shoots, set: setShoots },
+                        ].map(({ label, value, set }) => (
+                            <div key={label} className="flex flex-col gap-2">
+                                <Label>{label}</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    value={value}
+                                    onChange={(e) => set(e.target.value)}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={save} disabled={saving}>
+                            Save targets
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+}
+
+// ─── BusinessCalendar (inline for the tab) ───────────────────────────────────
+
+type CalendarEvent = {
+    id: number;
+    title: string;
+    date: string;
+    kind: 'content' | 'task';
+    status: string;
+    url: string;
+};
+
+function BusinessCalendar({
+    events,
+}: {
+    events: CalendarEvent[];
+}) {
+    const today = new Date();
+    const [current, setCurrent] = useState(
+        new Date(today.getFullYear(), today.getMonth(), 1),
+    );
+
+    const year = current.getFullYear();
+    const month = current.getMonth();
+
+    const days = useMemo(() => {
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const cells: (Date | null)[] = [];
+
+        for (let i = 0; i < firstDay; i++) {
+cells.push(null);
+}
+
+        for (let d = 1; d <= daysInMonth; d++) {
+cells.push(new Date(year, month, d));
+}
+
+        return cells;
+    }, [year, month]);
+
+    const eventsByDate = useMemo(() => {
+        const map: Record<string, CalendarEvent[]> = {};
+
+        for (const ev of events) {
+            const d = new Date(ev.date);
+
+            if (d.getFullYear() === year && d.getMonth() === month) {
+                const key = d.getDate().toString();
+                (map[key] ??= []).push(ev);
+            }
+        }
+
+        return map;
+    }, [events, year, month]);
+
+    function prev() {
+        setCurrent(new Date(year, month - 1, 1));
+    }
+    function next() {
+        setCurrent(new Date(year, month + 1, 1));
+    }
+
+    return (
+        <div className="lumink-panel overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b px-4 py-3">
+                <button
+                    onClick={prev}
+                    className="rounded p-1 hover:bg-muted"
+                    aria-label="Previous month"
+                >
+                    <ChevronLeft className="size-4" />
+                </button>
+                <h2 className="font-semibold">
+                    {MONTHS[month]} {year}
+                </h2>
+                <button
+                    onClick={next}
+                    className="rounded p-1 hover:bg-muted"
+                    aria-label="Next month"
+                >
+                    <ChevronRight className="size-4" />
+                </button>
+            </div>
+
+            {/* Weekday headers */}
+            <div className="grid grid-cols-7 border-b text-center text-xs font-medium text-muted-foreground">
+                {WEEKDAYS.map((d) => (
+                    <div key={d} className="py-2">
+                        {d}
+                    </div>
+                ))}
+            </div>
+
+            {/* Grid */}
+            <div className="grid grid-cols-7 divide-x divide-y">
+                {days.map((day, i) => {
+                    if (!day) {
+                        return (
+                            <div
+                                key={`empty-${i}`}
+                                className="min-h-[80px] bg-muted/20 p-1"
+                            />
+                        );
+                    }
+
+                    const isToday = isSameDay(day, today);
+                    const dayEvents = eventsByDate[day.getDate().toString()] ?? [];
+
+                    return (
+                        <div
+                            key={day.toISOString()}
+                            className="min-h-[80px] p-1"
+                        >
+                            <span
+                                className={`flex size-6 items-center justify-center rounded-full text-xs font-medium ${
+                                    isToday
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'text-muted-foreground'
+                                }`}
+                            >
+                                {day.getDate()}
+                            </span>
+                            <div className="mt-1 flex flex-col gap-0.5">
+                                {dayEvents.slice(0, 3).map((ev) => (
+                                    <Link
+                                        key={ev.id}
+                                        href={ev.url}
+                                        className={`truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight ${
+                                            ev.kind === 'content'
+                                                ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                                                : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                        }`}
+                                        title={ev.title}
+                                    >
+                                        {ev.title}
+                                    </Link>
+                                ))}
+                                {dayEvents.length > 3 && (
+                                    <span className="px-1 text-[10px] text-muted-foreground">
+                                        +{dayEvents.length - 3} more
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Legend */}
+            <div className="flex gap-4 border-t px-4 py-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                    <span className="inline-block size-2.5 rounded bg-primary/30" />
+                    Content publish
+                </span>
+                <span className="flex items-center gap-1.5">
+                    <span className="inline-block size-2.5 rounded bg-amber-200" />
+                    Task due
+                </span>
+            </div>
+        </div>
+    );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function BusinessShow({
     business,
@@ -119,6 +420,76 @@ export default function BusinessShow({
             .length,
     };
 
+    // Calendar events built from already-loaded data
+    const calendarEvents = useMemo<CalendarEvent[]>(() => {
+        const evs: CalendarEvent[] = [];
+
+        for (const item of business.content_items) {
+            if (item.publish_at) {
+                evs.push({
+                    id: item.id,
+                    title: item.title,
+                    date: item.publish_at,
+                    kind: 'content',
+                    status: item.stage,
+                    url: `/content/${item.id}`,
+                });
+            }
+        }
+
+        for (const task of business.tasks) {
+            if (task.due_at) {
+                evs.push({
+                    id: task.id,
+                    title: task.title,
+                    date: task.due_at,
+                    kind: 'task',
+                    status: task.status,
+                    url: `/businesses/${business.id}?tab=Tasks`,
+                });
+            }
+        }
+
+        return evs;
+    }, [business]);
+
+    // Finance summaries
+    const totalInvoiced = useMemo(
+        () =>
+            (business.invoices ?? []).reduce(
+                (sum, inv) => sum + parseFloat(inv.total),
+                0,
+            ),
+        [business.invoices],
+    );
+    const totalPaid = useMemo(
+        () =>
+            (business.invoices ?? []).reduce((sum, inv) => {
+                const paid = (inv.payments ?? []).reduce(
+                    (s, p) => s + parseFloat(p.amount),
+                    0,
+                );
+
+                return sum + paid;
+            }, 0),
+        [business.invoices],
+    );
+    const totalExpenses = useMemo(
+        () =>
+            (business.expenses ?? []).reduce(
+                (sum, ex) => sum + parseFloat(ex.amount),
+                0,
+            ),
+        [business.expenses],
+    );
+
+    // Drive folders for Files tab
+    const driveMap = business.drive_folders_map ?? {};
+    const hasAnyDrive =
+        business.drive_folder_url ||
+        Object.values(driveMap).some(Boolean) ||
+        business.content_items.some((c) => c.drive_folder_url);
+
     function handleToggleStatus() {
         setActionInProgress(true);
         router.patch(
@@ -144,6 +515,22 @@ export default function BusinessShow({
             onFinish: () => setActionInProgress(false),
         });
     }
+
+    const tabs = [
+        { label: 'Overview' },
+        {
+            label: 'Content',
+            badge: business.content_items.length || undefined,
+        },
+        {
+            label: 'Tasks',
+            badge: business.tasks.length || undefined,
+        },
+        { label: 'Calendar' },
+        { label: 'Files' },
+        { label: 'Performance' },
+        { label: 'Finance' },
+    ];
 
     return (
         <>
@@ -258,35 +645,44 @@ export default function BusinessShow({
                     </div>
                 </div>
                 <nav className="mt-6 flex gap-6 overflow-x-auto text-sm font-medium">
-                    {[
-                        'Overview',
-                        'Content',
-                        'Tasks',
-                        'Calendar',
-                        'Files',
-                        'Performance',
-                        'Finance',
-                    ].map((tab) => (
+                    {tabs.map(({ label, badge }) => (
                         <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
+                            key={label}
+                            onClick={() => setActiveTab(label)}
                             className={
-                                activeTab === tab
-                                    ? 'border-b-2 border-primary pb-3 whitespace-nowrap text-primary'
-                                    : 'pb-3 whitespace-nowrap text-muted-foreground hover:text-foreground'
+                                activeTab === label
+                                    ? 'flex items-center gap-1.5 border-b-2 border-primary pb-3 whitespace-nowrap text-primary'
+                                    : 'flex items-center gap-1.5 pb-3 whitespace-nowrap text-muted-foreground hover:text-foreground'
                             }
                         >
-                            {tab}
+                            {label}
+                            {badge !== undefined && (
+                                <span
+                                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+                                        activeTab === label
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-muted text-muted-foreground'
+                                    }`}
+                                >
+                                    {badge}
+                                </span>
+                            )}
                         </button>
                     ))}
                 </nav>
             </header>
 
+            {/* ── OVERVIEW ── */}
             {activeTab === 'Overview' && (
                 <main className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
                     <div className="flex min-w-0 flex-col gap-5">
                         <section className="lumink-panel p-4">
-                            <h2 className="font-semibold">This month</h2>
+                            <div className="flex items-center gap-2">
+                                <h2 className="font-semibold">This month</h2>
+                                {canManage && (
+                                    <EditTargetsDialog business={business} />
+                                )}
+                            </div>
                             <div className="mt-4 grid gap-5 md:grid-cols-3">
                                 {(['reels', 'stories', 'static'] as const).map(
                                     (key) => {
@@ -306,7 +702,9 @@ export default function BusinessShow({
                                         return (
                                             <div key={key}>
                                                 <div className="flex justify-between text-sm">
-                                                    <span>{humanize(key)}</span>
+                                                    <span>
+                                                        {humanize(key)}
+                                                    </span>
                                                     <strong>
                                                         {value} / {target}
                                                     </strong>
@@ -484,8 +882,9 @@ export default function BusinessShow({
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {business.performance_periods.map(
-                                        (period) => (
+                                    {business.performance_periods
+                                        .slice(0, 4)
+                                        .map((period) => (
                                             <tr key={period.id}>
                                                 <td>
                                                     {shortDate(
@@ -502,8 +901,7 @@ export default function BusinessShow({
                                                     %
                                                 </td>
                                             </tr>
-                                        ),
-                                    )}
+                                        ))}
                                 </tbody>
                             </table>
                         </section>
@@ -574,6 +972,7 @@ export default function BusinessShow({
                 </main>
             )}
 
+            {/* ── CONTENT ── */}
             {activeTab === 'Content' && (
                 <main className="p-5">
                     <section className="lumink-panel overflow-hidden">
@@ -634,6 +1033,7 @@ export default function BusinessShow({
                 </main>
             )}
 
+            {/* ── TASKS ── */}
             {activeTab === 'Tasks' && (
                 <main className="p-5">
                     <section className="lumink-panel overflow-hidden">
@@ -679,19 +1079,341 @@ export default function BusinessShow({
                 </main>
             )}
 
-            {['Calendar', 'Files', 'Performance', 'Finance'].includes(
-                activeTab,
-            ) && (
+            {/* ── CALENDAR ── */}
+            {activeTab === 'Calendar' && (
                 <main className="p-5">
-                    <section className="lumink-panel p-8 text-center text-muted-foreground">
-                        <h2 className="text-lg font-medium text-foreground">
-                            {activeTab}
-                        </h2>
-                        <p className="mt-2">
-                            The {activeTab.toLowerCase()} view will be available
-                            in an upcoming update.
-                        </p>
+                    <BusinessCalendar events={calendarEvents} />
+                </main>
+            )}
+
+            {/* ── FILES ── */}
+            {activeTab === 'Files' && (
+                <main className="p-5">
+                    <div className="flex flex-col gap-5">
+                        {/* Business-level Drive folders */}
+                        <section className="lumink-panel overflow-hidden">
+                            <div className="flex items-center gap-2 border-b px-4 py-3">
+                                <FolderOpen className="size-4" />
+                                <h2 className="font-semibold">
+                                    Drive folders
+                                </h2>
+                            </div>
+                            <div className="divide-y">
+                                {business.drive_folder_url && (
+                                    <a
+                                        href={business.drive_folder_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50"
+                                    >
+                                        <div>
+                                            <p className="font-medium">
+                                                Main folder
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {business.name} — root
+                                            </p>
+                                        </div>
+                                        <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
+                                    </a>
+                                )}
+                                {Object.entries(driveMap).map(
+                                    ([label, url]) =>
+                                        url ? (
+                                            <a
+                                                key={label}
+                                                href={url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50"
+                                            >
+                                                <p className="font-medium capitalize">
+                                                    {humanize(label)}
+                                                </p>
+                                                <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
+                                            </a>
+                                        ) : null,
+                                )}
+                                {!hasAnyDrive && (
+                                    <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                                        No Drive folders linked yet.
+                                    </p>
+                                )}
+                            </div>
+                        </section>
+
+                        {/* Content item Drive folders */}
+                        {business.content_items.some(
+                            (c) => c.drive_folder_url,
+                        ) && (
+                            <section className="lumink-panel overflow-hidden">
+                                <div className="border-b px-4 py-3">
+                                    <h2 className="font-semibold">
+                                        Content folders
+                                    </h2>
+                                </div>
+                                <div className="divide-y">
+                                    {business.content_items
+                                        .filter((c) => c.drive_folder_url)
+                                        .map((item) => (
+                                            <a
+                                                key={item.id}
+                                                href={item.drive_folder_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50"
+                                            >
+                                                <div>
+                                                    <p className="font-medium">
+                                                        {item.title}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {humanize(item.type)} ·{' '}
+                                                        {humanize(item.stage)}
+                                                    </p>
+                                                </div>
+                                                <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
+                                            </a>
+                                        ))}
+                                </div>
+                            </section>
+                        )}
+                    </div>
+                </main>
+            )}
+
+            {/* ── PERFORMANCE ── */}
+            {activeTab === 'Performance' && (
+                <main className="p-5">
+                    {business.performance_periods.length === 0 ? (
+                        <section className="lumink-panel p-8 text-center text-muted-foreground">
+                            <p className="text-lg font-medium text-foreground">
+                                No performance data yet
+                            </p>
+                            <p className="mt-2">
+                                Performance periods will appear here once added.
+                            </p>
+                        </section>
+                    ) : (
+                        <section className="lumink-panel overflow-hidden">
+                            <div className="border-b px-4 py-3">
+                                <h2 className="font-semibold">
+                                    Performance periods
+                                </h2>
+                            </div>
+                            <table className="lumink-table">
+                                <thead>
+                                    <tr>
+                                        <th>Period</th>
+                                        <th>Duration</th>
+                                        <th>Sales change</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {business.performance_periods.map(
+                                        (period) => {
+                                            const pct = parseFloat(
+                                                period.sales_change_percent ??
+                                                    '0',
+                                            );
+
+                                            return (
+                                                <tr key={period.id}>
+                                                    <td>
+                                                        {shortDate(
+                                                            period.starts_on,
+                                                        )}{' '}
+                                                        –{' '}
+                                                        {shortDate(
+                                                            period.ends_on,
+                                                        )}
+                                                    </td>
+                                                    <td className="text-muted-foreground">
+                                                        {Math.round(
+                                                            (new Date(
+                                                                period.ends_on,
+                                                            ).getTime() -
+                                                                new Date(
+                                                                    period.starts_on,
+                                                                ).getTime()) /
+                                                                (1000 *
+                                                                    60 *
+                                                                    60 *
+                                                                    24),
+                                                        )}{' '}
+                                                        days
+                                                    </td>
+                                                    <td>
+                                                        <span
+                                                            className={`flex items-center gap-1 font-semibold ${pct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}
+                                                        >
+                                                            {pct >= 0 ? (
+                                                                <TrendingUp className="size-3.5" />
+                                                            ) : (
+                                                                <TrendingDown className="size-3.5" />
+                                                            )}
+                                                            {pct >= 0 ? '+' : ''}
+                                                            {period.sales_change_percent}
+                                                            %
+                                                        </span>
+                                                    </td>
+                                                    <td className="text-sm text-muted-foreground">
+                                                        {period.notes ?? '—'}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        },
+                                    )}
+                                </tbody>
+                            </table>
+                        </section>
+                    )}
+                </main>
+            )}
+
+            {/* ── FINANCE ── */}
+            {activeTab === 'Finance' && (
+                <main className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(280px,1fr)]">
+                    {/* Invoices */}
+                    <section className="lumink-panel overflow-hidden">
+                        <div className="border-b px-4 py-3">
+                            <h2 className="font-semibold">Invoices</h2>
+                        </div>
+                        {(business.invoices ?? []).length === 0 ? (
+                            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                                No invoices yet.
+                            </p>
+                        ) : (
+                            <table className="lumink-table">
+                                <thead>
+                                    <tr>
+                                        <th>Invoice #</th>
+                                        <th>Issued</th>
+                                        <th>Due</th>
+                                        <th className="text-right">Total</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(business.invoices ?? []).map((inv) => (
+                                        <tr key={inv.id}>
+                                            <td className="font-medium">
+                                                {inv.number}
+                                            </td>
+                                            <td>
+                                                {shortDate(inv.issue_date)}
+                                            </td>
+                                            <td>{shortDate(inv.due_date)}</td>
+                                            <td className="text-right font-semibold">
+                                                {money(inv.total)}
+                                            </td>
+                                            <td>
+                                                <StatusBadge
+                                                    value={inv.status}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
                     </section>
+
+                    {/* Finance summary + expenses */}
+                    <div className="flex flex-col gap-5">
+                        <section className="lumink-panel p-4">
+                            <h2 className="font-semibold">Summary</h2>
+                            <dl className="mt-4 flex flex-col gap-3 text-sm">
+                                <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">
+                                        Total invoiced
+                                    </dt>
+                                    <dd className="font-medium">
+                                        {money(totalInvoiced)}
+                                    </dd>
+                                </div>
+                                <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">
+                                        Total received
+                                    </dt>
+                                    <dd className="font-medium text-emerald-600">
+                                        {money(totalPaid)}
+                                    </dd>
+                                </div>
+                                <div className="flex justify-between">
+                                    <dt className="text-muted-foreground">
+                                        Outstanding
+                                    </dt>
+                                    <dd className="font-medium text-amber-600">
+                                        {money(totalInvoiced - totalPaid)}
+                                    </dd>
+                                </div>
+                                <div className="flex justify-between border-t pt-3">
+                                    <dt className="text-muted-foreground">
+                                        Direct expenses
+                                    </dt>
+                                    <dd className="font-medium text-red-600">
+                                        {money(totalExpenses)}
+                                    </dd>
+                                </div>
+                                <div className="flex justify-between font-semibold">
+                                    <dt>Net margin</dt>
+                                    <dd
+                                        className={
+                                            totalPaid - totalExpenses >= 0
+                                                ? 'text-emerald-600'
+                                                : 'text-red-600'
+                                        }
+                                    >
+                                        {money(totalPaid - totalExpenses)}
+                                    </dd>
+                                </div>
+                            </dl>
+                        </section>
+
+                        <section className="lumink-panel overflow-hidden">
+                            <div className="border-b px-4 py-3">
+                                <h2 className="font-semibold">
+                                    Direct expenses
+                                </h2>
+                            </div>
+                            {(business.expenses ?? []).length === 0 ? (
+                                <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                                    No expenses recorded.
+                                </p>
+                            ) : (
+                                <table className="lumink-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Category</th>
+                                            <th className="text-right">
+                                                Amount
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(business.expenses ?? []).map(
+                                            (ex) => (
+                                                <tr key={ex.id}>
+                                                    <td>
+                                                        {shortDate(ex.spent_on)}
+                                                    </td>
+                                                    <td>
+                                                        {humanize(ex.category)}
+                                                    </td>
+                                                    <td className="text-right font-medium">
+                                                        {money(ex.amount)}
+                                                    </td>
+                                                </tr>
+                                            ),
+                                        )}
+                                    </tbody>
+                                </table>
+                            )}
+                        </section>
+                    </div>
                 </main>
             )}
 

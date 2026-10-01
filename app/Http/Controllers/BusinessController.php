@@ -74,14 +74,19 @@ class BusinessController extends Controller
             'campaigns' => fn ($query) => $query->latest('starts_on'),
             'contentItems' => fn ($query) => $query->with('owner:id,name')->orderBy('publish_at'),
             'tasks' => fn ($query) => $query->with('owner:id,name')->where('status', '!=', 'done')->orderBy('due_at'),
-            'performancePeriods' => fn ($query) => $query->latest('ends_on')->limit(4),
+            'performancePeriods' => fn ($query) => $query->latest('ends_on'),
+            'invoices' => fn ($query) => $query->with('payments')->latest('issue_date')->limit(24),
             'expenses' => fn ($query) => $query
                 ->where('allocation_type', 'direct')
-                ->whereBetween('spent_on', [now()->startOfMonth(), now()->endOfMonth()]),
+                ->orderBy('spent_on', 'desc')
+                ->limit(50),
         ]);
 
         $trackedMinutes = $business->tasks()->sum('actual_minutes');
-        $directExpenses = (float) $business->expenses->sum('amount');
+        $directExpenses = (float) $business->expenses()
+            ->where('allocation_type', 'direct')
+            ->whereBetween('spent_on', [now()->startOfMonth(), now()->endOfMonth()])
+            ->sum('amount');
 
         return Inertia::render('businesses/show', [
             'business' => $business,
