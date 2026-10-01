@@ -26,6 +26,7 @@ Route::prefix('v1')->group(function () {
         // Strategy & Business Workspaces
         Route::get('/businesses', [BusinessApiController::class, 'index'])->name('api.businesses.index');
         Route::get('/businesses/{business}', [BusinessApiController::class, 'show'])->name('api.businesses.show');
+        Route::patch('/businesses/{business}/targets', [BusinessApiController::class, 'updateTargets'])->name('api.businesses.updateTargets');
 
         // Content Deliverables & Creative Strategy
         Route::get('/content', [ContentApiController::class, 'index'])->name('api.content.index');

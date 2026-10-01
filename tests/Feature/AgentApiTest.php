@@ -20,7 +20,7 @@ class AgentApiTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('system', 'Lumink OS - Agency Operating System')
-            ->assertJsonPath('version', '1.0.0')
+            ->assertJsonPath('version', '1.1.0')
             ->assertJsonStructure([
                 'status',
                 'system',

@@ -32,7 +32,16 @@ class AgentSchemaController extends Controller
         return response()->json([
             'status' => 'success',
             'system' => 'Lumink OS - Agency Operating System',
-            'version' => '1.0.0',
+            'version' => '1.1.0',
+            'changelog' => [
+                '1.1.0' => [
+                    'Delivery targets are now configurable per business (not hardcoded). PATCH /businesses/{id}/targets to update.',
+                    'GET /businesses and /businesses/{id} now include drive_folders_map (structured per-type Drive folder links).',
+                    'Business show page now has Calendar, Files, Performance, and Finance tabs — live data surfaced from existing API data.',
+                    'Stage proofs: content items now require proof submissions to advance certain stages (cannot skip without evidence).',
+                    'Content items can hold inspirations (images, URLs) visible in the inspiration section.',
+                ],
+            ],
             'agent_role' => 'Content Strategist, Task Planner, and Asset Coordinator',
             'auth' => [
                 'type' => 'Bearer Token',
@@ -40,15 +49,19 @@ class AgentSchemaController extends Controller
             ],
             'workflows' => [
                 '1_strategy_discovery' => [
-                    'description' => 'Inspect active client businesses, their retainer targets, and brand profiles.',
+                    'description' => 'Inspect active client businesses, their retainer targets, and brand profiles. Response now includes drive_folders_map with per-type Google Drive folder links.',
                     'action' => 'GET /api/v1/businesses or GET /api/v1/businesses/{id}',
                 ],
-                '1b_broll_bank_inspection' => [
+                '1b_update_delivery_targets' => [
+                    'description' => 'Update the monthly delivery target counts (reels, stories, static, shoots) for a specific client business. Only callable by owners and managers.',
+                    'action' => 'PATCH /api/v1/businesses/{id}/targets with { deliverable_targets: { reels: N, stories: N, static: N, shoots: N } }',
+                ],
+                '1c_broll_bank_inspection' => [
                     'description' => 'Search existing shoot archive & B-roll library for footage keywords (e.g. sizzle, cocktail, chef) to reuse in content without scheduling new shoots.',
                     'action' => 'GET /api/v1/shoots?business_id={id}&tag={keyword}&has_footage=true',
                 ],
                 '2_content_planning' => [
-                    'description' => 'Create strategic content deliverables with script, hook, brief, target audience, and optional initial tasks. Can link primary_shoot_id and referenced_shoot_ids to reuse archive footage.',
+                    'description' => 'Create strategic content deliverables with script, hook, brief, target audience, and optional initial tasks. Can link primary_shoot_id and referenced_shoot_ids to reuse archive footage. You may also supply an inspirations array of URLs/notes.',
                     'action' => 'POST /api/v1/content',
                 ],
                 '3_task_definition' => [
@@ -67,6 +80,11 @@ class AgentSchemaController extends Controller
                     'description' => 'When content is ready for review, link final export asset URL and advance stage to client_review or approved.',
                     'action' => 'PATCH /api/v1/content/{id} with final_asset_url and stage: "client_review"',
                 ],
+            ],
+            'important_behaviour_notes' => [
+                'stage_proofs' => 'Content stages now enforce proof submission before certain transitions. The team must upload proof (URL, image, or notes) via the UI to mark a stage completed. The agent should SET the stage via PATCH but should not expect instant completion without team proof.',
+                'delivery_targets' => 'deliverable_targets on each business is now configurable per business via the UI (owner/manager) or via PATCH /api/v1/businesses/{id}/targets. Always read the current value from GET /businesses before making recommendations — do not assume defaults.',
+                'drive_folders_map' => 'Each business may have a drive_folders_map object with keys like "raw_footage", "edited", "approved", etc. pointing to sub-folder URLs. Use these when referencing where to find or upload specific asset types.',
             ],
             'enums' => [
                 'content_stages' => ContentItem::STAGES,
@@ -414,33 +432,61 @@ class AgentSchemaController extends Controller
         $baseUrl = url('/api/v1');
 
         $markdown = <<<MARKDOWN
-# Lumink OS AI Agent Operating Manual
+# Lumink OS AI Agent Operating Manual — v1.1.0
 
 You are an AI Agent with direct authenticated access to Lumink OS (Agency Management System).
 Base URL: `{$baseUrl}`
 Authentication: Send `Authorization: Bearer <your_token>` on every request.
 
+## What Changed in v1.1.0
+- **Delivery targets are per-business and editable** — always read `deliverable_targets` from `GET /businesses` before planning; do not assume defaults.
+- **`PATCH /businesses/{id}/targets`** — new endpoint to update monthly delivery targets (owners/managers only).
+- **`drive_folders_map`** is now returned on business responses — a structured object pointing to typed Drive sub-folders (e.g. `raw_footage`, `edited`, `approved`).
+- **Stage proofs** — content stage transitions now require proof submissions (URL/image/notes) submitted by the team via the UI. You can PATCH the stage but the transition won't complete without a human submitting evidence.
+- **Inspirations** — content items now have an inspiration section where the team or agent can attach reference URLs and images.
+
 ## Core Capabilities
-1. **Explore Client Strategy**: Query client businesses to discover their monthly retainers, deliverable targets, and existing Drive folder structure.
-   - `GET /businesses`: List businesses with deliverable targets and Google Drive root folder.
-   - `GET /businesses/{id}`: View specific client details and current campaign plans.
 
-2. **Plan Content Deliverables & Reuse Archive Footage**:
-   - `GET /shoots?business_id={id}&tag={keyword}`: Search the client's B-roll archive first! If high-quality footage already exists from previous shoots, plan content around it to maximize production ROI.
-   - `POST /content`: Create deliverable. Include `business_id`, `title`, `type` (`reel`, `carousel`, `video`, `photo`, `story`, `post`), `stage`, `brief`, `hook`, `script`, `cta`, `target_audience`, `publish_at`.
-   - **Cross-Referencing Shoots**: Pass `primary_shoot_id` (the dedicated shoot) and `referenced_shoot_ids: [id1, id2]` (past shoots with reusable B-roll).
-   - You can also supply a `tasks` array directly inside `POST /content` to create all sub-tasks in one request!
+### 1. Explore Client Strategy
+Query client businesses to discover their monthly retainers, **per-business configurable** deliverable targets, and Drive folder structure.
+- `GET /businesses`: Lists all active businesses. Each includes `deliverable_targets` (per-business) and `drive_folders_map`.
+- `GET /businesses/{id}`: Full detail with active campaigns, content pipeline, and upcoming tasks.
+- `PATCH /businesses/{id}/targets`: Update `{ deliverable_targets: { reels: N, stories: N, static: N, shoots: N } }`. Owner/manager only.
 
-3. **Manage & Track Tasks**:
-   - `POST /tasks`: Create individual task linked to a content item (`content_item_id`) or business (`business_id`).
-   - `PATCH /tasks/{id}`: Update task status (`todo`, `in_progress`, `blocked`, `review`, `done`) and track `actual_minutes`.
+> **Important**: `deliverable_targets` is now set individually per client. Always read it fresh before making monthly planning recommendations.
 
-4. **Connect Google Drive Shots & Media Assets**:
-   - When a shoot is scheduled or shots are captured in Google Drive:
-     - On the Shoot Session: `POST /shoots` automatically provisions `01_Raw_Footage/Shoots_Archive/YYYY-MM-DD_Title/` in Drive!
-     - On the Content Item: `PATCH /content/{id}` with `primary_shoot_id` or `referenced_shoot_ids` so the editor has 1-click links to all necessary footage folders.
-   - When the content is edited and ready:
-     - `PATCH /content/{id}` with `final_asset_url` (link to the single exported review file in Drive) and set `stage: 'client_review'` or `'approved'`.
+### 2. Understand Drive Folder Structure
+Each business response includes:
+- `drive_folder_url` — root Google Drive folder
+- `drive_folders_map` — object with named sub-folder URLs, e.g. `{ "raw_footage": "...", "edited": "...", "approved": "..." }`
+
+Use these when telling the team where to find or upload assets.
+
+### 3. Plan Content Deliverables & Reuse Archive Footage
+- `GET /shoots?business_id={id}&tag={keyword}`: Search the client's B-roll archive first — reuse existing footage to maximise production ROI.
+- `POST /content`: Create deliverable. Include `business_id`, `title`, `type` (`reel`, `carousel`, `video`, `photo`, `story`, `post`), `stage`, `brief`, `hook`, `script`, `cta`, `target_audience`, `publish_at`.
+  - **Cross-Reference Shoots**: Pass `primary_shoot_id` (dedicated shoot) and `referenced_shoot_ids: [id1, id2]` (past shoots with reusable B-roll).
+  - Embed a `tasks` array inside `POST /content` to create all sub-tasks in one request.
+  - Optionally include `inspirations` array of `{ url, notes }` objects for the inspiration section.
+
+### 4. Stage Progression & Proof Requirements
+Content stages flow forward: `idea → planned → scripted → shoot_scheduled → shot → editing → internal_review → client_review → approved → scheduled → published`
+
+You can SET a content's stage via `PATCH /content/{id}` with `{ stage: "..." }`.
+
+**However**, the team must submit a proof (URL, image, or notes) via the UI before the stage is marked completed. You should:
+1. Set the stage to indicate intent.
+2. Notify the relevant team member that a proof submission is required.
+3. Do not assume the stage is complete until you re-read the item and see `stage` has advanced.
+
+### 5. Manage & Track Tasks
+- `POST /tasks`: Create individual task linked to a content item (`content_item_id`) or business (`business_id`).
+- `PATCH /tasks/{id}`: Update task status (`todo`, `in_progress`, `blocked`, `review`, `done`) and track `actual_minutes`.
+
+### 6. Connect Google Drive Shots & Media Assets
+- On shoot scheduling: `POST /shoots` auto-provisions a raw footage directory in Drive.
+- On content: `PATCH /content/{id}` with `primary_shoot_id` or `referenced_shoot_ids` for editor 1-click access to all necessary footage.
+- When ready for client: `PATCH /content/{id}` with `final_asset_url` and `stage: "client_review"`.
 
 ## Enums
 - **Content Stages**: `idea`, `planned`, `scripted`, `shoot_scheduled`, `shot`, `editing`, `internal_review`, `client_review`, `approved`, `scheduled`, `published`
@@ -449,8 +495,8 @@ Authentication: Send `Authorization: Bearer <your_token>` on every request.
 - **Task Statuses**: `todo`, `in_progress`, `blocked`, `review`, `done`
 - **Priorities**: `low`, `medium`, `high`
 
-Machine-readable OpenAPI 3.0 spec is available at `GET /openapi.json`.
-Full capabilities manifest is available at `GET /agent/capabilities`.
+Machine-readable OpenAPI 3.0 spec: `GET /openapi.json`
+Full capabilities manifest (JSON): `GET /agent/capabilities`
 MARKDOWN;
 
         return response($markdown, 200, ['Content-Type' => 'text/markdown; charset=UTF-8']);

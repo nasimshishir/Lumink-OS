@@ -26,6 +26,7 @@ class BusinessApiController extends Controller
                 'monthly_retainer',
                 'drive_folder_id',
                 'drive_folder_url',
+                'drive_folders_map',
                 'deliverable_targets',
                 'brand_profile',
                 'approval_deadline_hours',
@@ -55,6 +56,36 @@ class BusinessApiController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $business,
+        ]);
+    }
+
+    /**
+     * Update monthly deliverable targets for a business workspace.
+     * Restricted to owners and managers.
+     */
+    public function updateTargets(Request $request, Business $business): JsonResponse
+    {
+        abort_unless($request->user()->canManageOperations(), 403, 'Only owners and managers can update delivery targets.');
+        abort_if($business->trashed(), 404, 'Business is in Recycle Bin.');
+
+        $data = $request->validate([
+            'deliverable_targets' => ['required', 'array'],
+            'deliverable_targets.reels' => ['sometimes', 'integer', 'min:0'],
+            'deliverable_targets.stories' => ['sometimes', 'integer', 'min:0'],
+            'deliverable_targets.static' => ['sometimes', 'integer', 'min:0'],
+            'deliverable_targets.shoots' => ['sometimes', 'integer', 'min:0'],
+        ]);
+
+        $business->update($data);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Delivery targets updated.',
+            'data' => [
+                'id' => $business->id,
+                'name' => $business->name,
+                'deliverable_targets' => $business->deliverable_targets,
+            ],
         ]);
     }
 }
