@@ -38,6 +38,20 @@ class ContentItemPolicy
         return $user->canManageOperations() || $contentItem->owner_id === $user->id;
     }
 
+    public function submitProof(User $user, ContentItem $contentItem): bool
+    {
+        return $user->canManageOperations()
+            || $contentItem->owner_id === $user->id
+            || $contentItem->tasks()->where('owner_id', $user->id)->exists();
+    }
+
+    public function manageInspirations(User $user, ContentItem $contentItem): bool
+    {
+        return $user->canManageOperations()
+            || $contentItem->owner_id === $user->id
+            || $contentItem->tasks()->where('owner_id', $user->id)->exists();
+    }
+
     public function delete(User $user, ContentItem $contentItem): bool
     {
         return $user->canManageOperations() || $contentItem->owner_id === $user->id;

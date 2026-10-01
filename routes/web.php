@@ -4,6 +4,8 @@ use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\BusinessController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ContentController;
+use App\Http\Controllers\ContentInspirationController;
+use App\Http\Controllers\ContentStepProofController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DriveConnectionController;
 use App\Http\Controllers\ExpenseController;
@@ -81,6 +83,10 @@ Route::middleware('auth')->group(function () {
     Route::patch('/content/{contentItem}', [ContentController::class, 'update'])->name('content.update');
     Route::delete('/content/{contentItem}', [ContentController::class, 'destroy'])->name('content.destroy');
     Route::post('/content/{contentItem}/approvals', [ApprovalController::class, 'store'])->name('approvals.store');
+    Route::post('/content/{contentItem}/proofs', [ContentStepProofController::class, 'store'])->name('content.proofs.store');
+    Route::delete('/content/{contentItem}/proofs/{proof}', [ContentStepProofController::class, 'destroy'])->name('content.proofs.destroy');
+    Route::post('/content/{contentItem}/inspirations', [ContentInspirationController::class, 'store'])->name('content.inspirations.store');
+    Route::delete('/content/{contentItem}/inspirations/{inspiration}', [ContentInspirationController::class, 'destroy'])->name('content.inspirations.destroy');
 
     Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
     Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');

@@ -30,6 +30,8 @@ use Illuminate\Support\Carbon;
  * @property-read User|null $owner
  * @property-read Business|null $business
  * @property-read ShootSession|null $primaryShoot
+ * @property-read Collection<int, ContentStepProof> $proofs
+ * @property-read Collection<int, ContentInspiration> $inspirations
  */
 class ContentItem extends Model
 {
@@ -100,6 +102,18 @@ class ContentItem extends Model
     public function approvals(): HasMany
     {
         return $this->hasMany(ApprovalRequest::class);
+    }
+
+    /** @return HasMany<ContentStepProof, $this> */
+    public function proofs(): HasMany
+    {
+        return $this->hasMany(ContentStepProof::class);
+    }
+
+    /** @return HasMany<ContentInspiration, $this> */
+    public function inspirations(): HasMany
+    {
+        return $this->hasMany(ContentInspiration::class)->orderBy('position')->latest();
     }
 
     /**

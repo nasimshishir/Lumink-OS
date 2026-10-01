@@ -192,6 +192,8 @@ class ContentApiController extends Controller
             'primaryShoot:id,title,starts_at,location,drive_folder_url,broll_tags,footage_summary',
             'tasks' => fn ($q) => $q->orderBy('due_at'),
             'approvals',
+            'proofs.user:id,name,avatar',
+            'inspirations.user:id,name,avatar',
         ]);
 
         $responseData = $contentItem->toArray();

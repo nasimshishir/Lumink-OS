@@ -51,6 +51,8 @@ class ContentController extends Controller
             'platformVersions',
             'tasks.owner:id,name,avatar',
             'approvals' => fn ($query) => $query->with('responses')->latest(),
+            'proofs.user:id,name,avatar',
+            'inspirations.user:id,name,avatar',
         ]);
 
         $contentItem->approvals->makeVisible('token');
@@ -69,6 +71,8 @@ class ContentController extends Controller
             'businesses' => Business::orderBy('name')->get(['id', 'name']),
             'canManage' => $request->user()->canManageOperations(),
             'isOwner' => $request->user()->isOwner(),
+            'canSubmitProof' => $request->user()->can('submitProof', $contentItem),
+            'canManageInspirations' => $request->user()->can('manageInspirations', $contentItem),
         ]);
     }
 

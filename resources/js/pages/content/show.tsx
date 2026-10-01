@@ -9,7 +9,11 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { AddTaskDialog } from '@/components/add-task-dialog';
+import { ContentInspirationSection } from '@/components/content-inspiration-section';
+import type { ContentInspiration } from '@/components/content-inspiration-section';
 import { ContentMediaPreview } from '@/components/content-media-preview';
+import { ContentStageStepper } from '@/components/content-stage-stepper';
+import type { ContentStepProof } from '@/components/content-stage-stepper';
 import { DeleteContentDialog } from '@/components/delete-content-dialog';
 import { DeleteTaskDialog } from '@/components/delete-task-dialog';
 import { EditContentDetailsDialog } from '@/components/edit-content-details-dialog';
@@ -21,6 +25,7 @@ import {
 } from '@/components/task-status-control';
 import { Button } from '@/components/ui/button';
 import { dateTime, humanize } from '@/lib/format';
+import { cn } from '@/lib/utils';
 
 type PlatformVersion = {
     id: number;
@@ -95,6 +100,8 @@ type Content = {
     platform_versions: PlatformVersion[];
     tasks: Task[];
     approvals: Approval[];
+    proofs?: ContentStepProof[];
+    inspirations?: ContentInspiration[];
 };
 
 export default function ContentShow({
@@ -105,6 +112,8 @@ export default function ContentShow({
     users = [],
     canManage = false,
     isOwner = false,
+    canSubmitProof = true,
+    canManageInspirations = true,
 }: {
     content: Content;
     stages: string[];
@@ -113,6 +122,8 @@ export default function ContentShow({
     users?: { id: number; name: string; avatar?: string }[];
     canManage?: boolean;
     isOwner?: boolean;
+    canSubmitProof?: boolean;
+    canManageInspirations?: boolean;
 }) {
     const [platform, setPlatform] = useState(
         content.platform_versions[0]?.platform ?? 'instagram',
@@ -228,28 +239,16 @@ export default function ContentShow({
                         )}
                     </div>
                 </div>
-                <div className="mt-6 flex overflow-x-auto pb-1">
-                    {stages.map((stage, index) => {
-                        const current = stages.indexOf(content.stage);
-                        const complete = index <= current;
-
-                        return (
-                            <button
-                                key={stage}
-                                onClick={() => moveTo(stage)}
-                                className="group min-w-24 flex-1 text-center"
-                            >
-                                <span
-                                    className={`mx-auto flex size-9 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors ${complete ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-white text-muted-foreground group-hover:border-primary'}`}
-                                >
-                                    {index + 1}
-                                </span>
-                                <span className="mt-2 block text-[10px]">
-                                    {humanize(stage)}
-                                </span>
-                            </button>
-                        );
-                    })}
+                <div className="mt-6">
+                    <ContentStageStepper
+                        contentId={content.id}
+                        currentStage={content.stage}
+                        stages={stages}
+                        proofs={content.proofs}
+                        canSubmitProof={canSubmitProof}
+                        rawFootageUrl={content.raw_footage_url}
+                        finalAssetUrl={content.final_asset_url}
+                    />
                 </div>
             </header>
 
@@ -301,33 +300,75 @@ export default function ContentShow({
                             </div>
                             <div className="border-t p-4 md:border-t-0 md:border-l">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="font-semibold">
-                                        Production checklist
+                                    <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                        Stage Verification
                                     </h3>
-                                    <span className="text-xs text-muted-foreground">
-                                        {stages.indexOf(content.stage) + 1}/
-                                        {stages.length}
+                                    <span className="text-xs font-semibold text-primary">
+                                        {content.proofs?.filter(
+                                            (p) => p.status === 'verified',
+                                        ).length ?? 0}
+                                        /{stages.length} verified
                                     </span>
                                 </div>
-                                <div className="mt-4 flex flex-col gap-3">
-                                    {stages.map((stage, index) => (
-                                        <div
-                                            key={stage}
-                                            className="flex items-center gap-2 text-sm"
-                                        >
-                                            {index <=
-                                            stages.indexOf(content.stage) ? (
-                                                <Check className="size-4 text-primary" />
-                                            ) : (
-                                                <span className="size-4 rounded-full border" />
-                                            )}
-                                            <span>{humanize(stage)}</span>
-                                        </div>
-                                    ))}
+                                <div className="mt-3 flex flex-col gap-2.5">
+                                    {stages.map((stage) => {
+                                        const isVerified = content.proofs?.some(
+                                            (p) =>
+                                                p.stage === stage &&
+                                                p.status === 'verified',
+                                        );
+                                        const isCurrent =
+                                            content.stage === stage;
+
+                                        return (
+                                            <div
+                                                key={stage}
+                                                className="flex items-center justify-between text-xs"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    {isVerified ? (
+                                                        <Check className="size-3.5 stroke-[2.5] text-emerald-600" />
+                                                    ) : isCurrent ? (
+                                                        <span className="size-2 animate-pulse rounded-full bg-primary" />
+                                                    ) : (
+                                                        <span className="size-2 rounded-full border border-border" />
+                                                    )}
+                                                    <span
+                                                        className={cn(
+                                                            isCurrent &&
+                                                                'font-semibold text-primary',
+                                                            isVerified &&
+                                                                'font-medium text-foreground',
+                                                            !isCurrent &&
+                                                                !isVerified &&
+                                                                'text-muted-foreground',
+                                                        )}
+                                                    >
+                                                        {humanize(stage)}
+                                                    </span>
+                                                </div>
+                                                {isVerified ? (
+                                                    <span className="text-[10px] font-medium text-emerald-600">
+                                                        Proof ✓
+                                                    </span>
+                                                ) : isCurrent ? (
+                                                    <span className="text-[10px] font-medium text-primary">
+                                                        Active
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
                     </section>
+
+                    <ContentInspirationSection
+                        contentId={content.id}
+                        inspirations={content.inspirations}
+                        canManageInspirations={canManageInspirations}
+                    />
 
                     <section className="lumink-panel overflow-hidden">
                         <div className="flex items-center justify-between border-b px-4 py-3">
