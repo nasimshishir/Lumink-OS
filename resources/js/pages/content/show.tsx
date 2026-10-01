@@ -15,6 +15,10 @@ import { DeleteTaskDialog } from '@/components/delete-task-dialog';
 import { EditContentDetailsDialog } from '@/components/edit-content-details-dialog';
 import { EditTaskDialog } from '@/components/edit-task-dialog';
 import { StatusBadge } from '@/components/status-badge';
+import {
+    TaskAdvanceButton,
+    TaskStatusDropdown,
+} from '@/components/task-status-control';
 import { Button } from '@/components/ui/button';
 import { dateTime, humanize } from '@/lib/format';
 
@@ -357,7 +361,11 @@ export default function ContentShow({
                                             {task.owner?.name ?? 'Unassigned'}
                                         </td>
                                         <td>
-                                            <StatusBadge value={task.status} />
+                                            <TaskStatusDropdown
+                                                taskId={task.id}
+                                                status={task.status}
+                                                taskTitle={task.title}
+                                            />
                                         </td>
                                         <td>{dateTime(task.due_at)}</td>
                                         <td>
@@ -372,6 +380,10 @@ export default function ContentShow({
                                         </td>
                                         <td className="text-right">
                                             <div className="flex items-center justify-end gap-1.5">
+                                                <TaskAdvanceButton
+                                                    taskId={task.id}
+                                                    status={task.status}
+                                                />
                                                 <EditTaskDialog
                                                     task={{
                                                         ...task,

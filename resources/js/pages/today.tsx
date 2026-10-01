@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import {
     AlertCircle,
     CalendarClock,
@@ -13,8 +13,11 @@ import { DeleteTaskDialog } from '@/components/delete-task-dialog';
 import { EditTaskDialog } from '@/components/edit-task-dialog';
 import { PageHeading } from '@/components/page-heading';
 import { StatusBadge } from '@/components/status-badge';
+import {
+    TaskAdvanceButton,
+    TaskStatusDropdown,
+} from '@/components/task-status-control';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { dateTime, humanize, money } from '@/lib/format';
 
 type Person = { id: number; name: string; avatar?: string };
@@ -77,12 +80,6 @@ export default function Today({
     canManage?: boolean;
     isOwner?: boolean;
 }) {
-    const markDone = (task: Task) =>
-        router.patch(
-            `/tasks/${task.id}`,
-            { status: 'done' },
-            { preserveScroll: true },
-        );
     const progress = finance
         ? Math.min(
               100,
@@ -225,27 +222,23 @@ export default function Today({
                                                 {dateTime(task.due_at)}
                                             </td>
                                             <td>
-                                                <div className="flex gap-2">
+                                                <div className="flex items-center gap-2">
                                                     <StatusBadge
                                                         value={task.priority}
                                                     />
-                                                    <StatusBadge
-                                                        value={task.status}
+                                                    <TaskStatusDropdown
+                                                        taskId={task.id}
+                                                        status={task.status}
+                                                        taskTitle={task.title}
                                                     />
                                                 </div>
                                             </td>
                                             <td className="text-right">
                                                 <div className="flex items-center justify-end gap-1.5">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="h-8 px-2.5 text-xs"
-                                                        onClick={() =>
-                                                            markDone(task)
-                                                        }
-                                                    >
-                                                        Mark done
-                                                    </Button>
+                                                    <TaskAdvanceButton
+                                                        taskId={task.id}
+                                                        status={task.status}
+                                                    />
                                                     {(canManage || isOwner) && (
                                                         <>
                                                             <EditTaskDialog
@@ -301,7 +294,11 @@ export default function Today({
                                             {task.business?.name ?? 'Agency'}
                                         </p>
                                     </div>
-                                    <StatusBadge value={task.status} />
+                                    <TaskStatusDropdown
+                                        taskId={task.id}
+                                        status={task.status}
+                                        taskTitle={task.title}
+                                    />
                                     <div className="flex items-center justify-end gap-1">
                                         {(canManage || isOwner) && (
                                             <EditTaskDialog

@@ -1,10 +1,11 @@
-import { Head, router } from '@inertiajs/react';
-import { CheckCircle2 } from 'lucide-react';
+import { Head } from '@inertiajs/react';
 import { DeleteTaskDialog } from '@/components/delete-task-dialog';
 import { EditTaskDialog } from '@/components/edit-task-dialog';
 import { PageHeading } from '@/components/page-heading';
-import { StatusBadge } from '@/components/status-badge';
-import { Button } from '@/components/ui/button';
+import {
+    TaskAdvanceButton,
+    TaskStatusDropdown,
+} from '@/components/task-status-control';
 import { dateTime, humanize } from '@/lib/format';
 
 type Task = {
@@ -81,29 +82,18 @@ export default function MyWork({
                                         h
                                     </td>
                                     <td>
-                                        <StatusBadge value={task.status} />
+                                        <TaskStatusDropdown
+                                            taskId={task.id}
+                                            status={task.status}
+                                            taskTitle={task.title}
+                                        />
                                     </td>
                                     <td className="text-right">
                                         <div className="flex items-center justify-end gap-1.5">
-                                            {task.status !== 'done' && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-8 gap-1 px-2.5 text-xs"
-                                                    onClick={() =>
-                                                        router.patch(
-                                                            `/tasks/${task.id}`,
-                                                            { status: 'done' },
-                                                            {
-                                                                preserveScroll: true,
-                                                            },
-                                                        )
-                                                    }
-                                                >
-                                                    <CheckCircle2 className="size-3.5" />
-                                                    Done
-                                                </Button>
-                                            )}
+                                            <TaskAdvanceButton
+                                                taskId={task.id}
+                                                status={task.status}
+                                            />
                                             <EditTaskDialog
                                                 task={task}
                                                 businesses={businesses}
