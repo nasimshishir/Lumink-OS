@@ -12,7 +12,10 @@ import { AddTaskDialog } from '@/components/add-task-dialog';
 import { ContentInspirationSection } from '@/components/content-inspiration-section';
 import type { ContentInspiration } from '@/components/content-inspiration-section';
 import { ContentMediaPreview } from '@/components/content-media-preview';
-import { ContentStageStepper } from '@/components/content-stage-stepper';
+import {
+    ContentStageStepper,
+    getStageStatus,
+} from '@/components/content-stage-stepper';
 import type { ContentStepProof } from '@/components/content-stage-stepper';
 import { DeleteContentDialog } from '@/components/delete-content-dialog';
 import { DeleteTaskDialog } from '@/components/delete-task-dialog';
@@ -304,11 +307,16 @@ export default function ContentShow({
                                         Stage Pipeline
                                     </h3>
                                     <span className="text-xs font-semibold text-emerald-600">
-                                        {content.proofs?.filter(
-                                            (p) =>
-                                                p.status === 'completed' ||
-                                                p.status === 'verified',
-                                        ).length ?? 0}
+                                        {stages.filter(
+                                            (s) =>
+                                                getStageStatus(
+                                                    s,
+                                                    content.stage,
+                                                    content.proofs?.find(
+                                                        (p) => p.stage === s,
+                                                    ),
+                                                ) === 'completed',
+                                        ).length}
                                         /{stages.length} completed
                                     </span>
                                 </div>
@@ -317,11 +325,15 @@ export default function ContentShow({
                                         const proof = content.proofs?.find(
                                             (p) => p.stage === stage,
                                         );
+                                        const status = getStageStatus(
+                                            stage,
+                                            content.stage,
+                                            proof,
+                                        );
                                         const isCompleted =
-                                            proof?.status === 'completed' ||
-                                            proof?.status === 'verified';
+                                            status === 'completed';
                                         const isInProgress =
-                                            proof?.status === 'in_progress';
+                                            status === 'in_progress';
 
                                         return (
                                             <div

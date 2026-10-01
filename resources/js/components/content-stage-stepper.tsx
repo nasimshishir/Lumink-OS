@@ -156,17 +156,25 @@ export const STAGE_CONFIG: Record<
 };
 
 export function getStageStatus(
+    stage: string,
+    currentStage?: string,
     proof?: ContentStepProof | null,
 ): 'pending' | 'in_progress' | 'completed' {
-    if (!proof) {
-        return 'pending';
+    if (proof) {
+        if (proof.status === 'completed' || proof.status === 'verified') {
+            return 'completed';
+        }
+
+        if (proof.status === 'in_progress') {
+            return 'in_progress';
+        }
+
+        if (proof.status === 'pending') {
+            return 'pending';
+        }
     }
 
-    if (proof.status === 'completed' || proof.status === 'verified') {
-        return 'completed';
-    }
-
-    if (proof.status === 'in_progress') {
+    if (currentStage && stage === currentStage) {
         return 'in_progress';
     }
 
@@ -185,6 +193,7 @@ interface ContentStageStepperProps {
 
 export function ContentStageStepper({
     contentId,
+    currentStage,
     stages,
     proofs = [],
     canSubmitProof = true,
@@ -198,11 +207,13 @@ export function ContentStageStepper({
         proofsMap.set(p.stage, p);
     });
 
-    const completedCount = proofs.filter(
-        (p) => p.status === 'completed' || p.status === 'verified',
+    const completedCount = stages.filter(
+        (s) =>
+            getStageStatus(s, currentStage, proofsMap.get(s)) === 'completed',
     ).length;
-    const inProgressCount = proofs.filter(
-        (p) => p.status === 'in_progress',
+    const inProgressCount = stages.filter(
+        (s) =>
+            getStageStatus(s, currentStage, proofsMap.get(s)) === 'in_progress',
     ).length;
     const pendingCount = stages.length - completedCount - inProgressCount;
 
@@ -262,7 +273,7 @@ export function ContentStageStepper({
                         fileHint: '',
                     };
                     const proof = proofsMap.get(stage);
-                    const status = getStageStatus(proof);
+                    const status = getStageStatus(stage, currentStage, proof);
 
                     const isCompleted = status === 'completed';
                     const isInProgress = status === 'in_progress';
@@ -350,13 +361,21 @@ export function ContentStageStepper({
             </div>
 
             {/* Stage status & proof modal */}
-            {selectedStage && (
+            {dialogOpen && selectedStage && (
                 <StageStatusModal
+                    key={selectedStage}
                     contentId={contentId}
                     stage={selectedStage}
+                    currentStage={currentStage}
                     existingProof={proofsMap.get(selectedStage)}
                     open={dialogOpen}
-                    onOpenChange={setDialogOpen}
+                    onOpenChange={(nextOpen) => {
+                        setDialogOpen(nextOpen);
+
+                        if (!nextOpen) {
+                            setSelectedStage(null);
+                        }
+                    }}
                     canSubmitProof={canSubmitProof}
                 />
             )}
@@ -367,6 +386,7 @@ export function ContentStageStepper({
 interface StageStatusModalProps {
     contentId: number;
     stage: string;
+    currentStage?: string;
     existingProof?: ContentStepProof;
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -376,6 +396,7 @@ interface StageStatusModalProps {
 function StageStatusModal({
     contentId,
     stage,
+    currentStage,
     existingProof,
     open,
     onOpenChange,
@@ -390,7 +411,7 @@ function StageStatusModal({
         fileHint: 'Upload screenshot or proof file',
     };
 
-    const currentStatus = getStageStatus(existingProof);
+    const currentStatus = getStageStatus(stage, currentStage, existingProof);
     const [selectedTargetStatus, setSelectedTargetStatus] = useState<
         'pending' | 'in_progress' | 'completed'
     >(currentStatus);
@@ -403,20 +424,6 @@ function StageStatusModal({
     const [files, setFiles] = useState<File[]>([]);
     const [validationError, setValidationError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    // Reset when modal opens for a different stage
-    const handleOpenChange = (nextOpen: boolean) => {
-        if (nextOpen) {
-            setSelectedTargetStatus(currentStatus);
-            setIsEditingProof(currentStatus !== 'completed');
-            setProofUrl(existingProof?.proof_url || '');
-            setNotes(existingProof?.notes || '');
-            setFiles([]);
-            setValidationError(null);
-        }
-
-        onOpenChange(nextOpen);
-    };
 
     function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
         if (e.target.files) {
@@ -546,7 +553,7 @@ function StageStatusModal({
     }
 
     return (
-        <Dialog open={open} onOpenChange={handleOpenChange}>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
                 <DialogHeader>
                     <div className="flex items-center justify-between pr-4">
