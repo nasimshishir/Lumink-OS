@@ -80,6 +80,7 @@ class BusinessController extends Controller
                 ->where('allocation_type', 'direct')
                 ->orderBy('spent_on', 'desc')
                 ->limit(50),
+            'shootSessions' => fn ($query) => $query->latest('starts_at'),
         ]);
 
         $trackedMinutes = $business->tasks()->sum('actual_minutes');

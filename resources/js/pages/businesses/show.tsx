@@ -97,6 +97,15 @@ type Expense = {
     spent_on: string;
     description?: string;
 };
+type ShootSession = {
+    id: number;
+    title: string;
+    starts_at: string;
+    ends_at?: string | null;
+    status: string;
+    location?: string | null;
+    drive_folder_url?: string | null;
+};
 type Business = {
     id: number;
     name: string;
@@ -118,6 +127,7 @@ type Business = {
     performance_periods: Period[];
     invoices?: Invoice[];
     expenses?: Expense[];
+    shoot_sessions?: ShootSession[];
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -418,7 +428,7 @@ type CalendarEvent = {
     id: number;
     title: string;
     date: string;
-    kind: 'content' | 'task';
+    kind: 'content' | 'task' | 'shoot';
     status: string;
     url: string;
 };
@@ -538,11 +548,13 @@ cells.push(new Date(year, month, d));
                             <div className="mt-1 flex flex-col gap-0.5">
                                 {dayEvents.slice(0, 3).map((ev) => (
                                     <Link
-                                        key={ev.id}
+                                        key={`${ev.kind}-${ev.id}`}
                                         href={ev.url}
                                         className={`truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight ${
                                             ev.kind === 'content'
                                                 ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                                                : ev.kind === 'shoot'
+                                                ? 'bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-400'
                                                 : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
                                         }`}
                                         title={ev.title}
@@ -566,6 +578,10 @@ cells.push(new Date(year, month, d));
                 <span className="flex items-center gap-1.5">
                     <span className="inline-block size-2.5 rounded bg-primary/30" />
                     Content publish
+                </span>
+                <span className="flex items-center gap-1.5">
+                    <span className="inline-block size-2.5 rounded bg-emerald-400/50" />
+                    Shoot session
                 </span>
                 <span className="flex items-center gap-1.5">
                     <span className="inline-block size-2.5 rounded bg-amber-200" />
@@ -607,8 +623,12 @@ export default function BusinessShow({
             .length,
         stories: business.content_items.filter((item) => item.type === 'story')
             .length,
-        static: business.content_items.filter((item) => item.type === 'static')
-            .length,
+        static: business.content_items.filter((item) =>
+            ['static', 'photo', 'post'].includes(item.type),
+        ).length,
+        shoots: (business.shoot_sessions ?? []).filter(
+            (shoot) => shoot.status !== 'canceled',
+        ).length,
     };
 
     // Calendar events built from already-loaded data
@@ -637,6 +657,19 @@ export default function BusinessShow({
                     kind: 'task',
                     status: task.status,
                     url: `/businesses/${business.id}?tab=Tasks`,
+                });
+            }
+        }
+
+        for (const shoot of business.shoot_sessions ?? []) {
+            if (shoot.starts_at) {
+                evs.push({
+                    id: shoot.id,
+                    title: `Shoot: ${shoot.title}`,
+                    date: shoot.starts_at,
+                    kind: 'shoot',
+                    status: shoot.status,
+                    url: `/shoots/${shoot.id}`,
                 });
             }
         }
@@ -877,8 +910,8 @@ export default function BusinessShow({
                                     <EditTargetsDialog business={business} />
                                 )}
                             </div>
-                            <div className="mt-4 grid gap-5 md:grid-cols-3">
-                                {(['reels', 'stories', 'static'] as const).map(
+                            <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                                {(['reels', 'stories', 'static', 'shoots'] as const).map(
                                     (key) => {
                                         const value = delivered[key];
                                         const target = Number(
