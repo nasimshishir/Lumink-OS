@@ -82,7 +82,7 @@ export default function MyWork({
                                                     onClick={(e) =>
                                                         e.stopPropagation()
                                                     }
-                                                    className="hover:underline hover:text-foreground"
+                                                    className="hover:text-foreground hover:underline"
                                                 >
                                                     {task.content_item.title}
                                                 </Link>

@@ -747,4 +747,63 @@ class AgentApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data');
     }
+
+    public function test_authenticated_agent_can_update_business_delivery_targets_including_carousel_and_cinematic(): void
+    {
+        $user = User::factory()->create(['role' => 'owner']);
+        $token = $user->createToken('agent-token', ['*'])->plainTextToken;
+
+        $business = Business::create(['name' => 'Fashion Juicy', 'slug' => 'fashion-juicy', 'monthly_retainer' => 30000]);
+
+        $targets = [
+            'reels' => 10,
+            'static' => 4,
+            'carousel' => 4,
+            'stories' => 12,
+            'cinematic' => 2,
+        ];
+
+        $response = $this->withHeader('Authorization', "Bearer {$token}")
+            ->patchJson("/api/v1/businesses/{$business->id}/targets", [
+                'deliverable_targets' => $targets,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.deliverable_targets.reels', 10)
+            ->assertJsonPath('data.deliverable_targets.static', 4)
+            ->assertJsonPath('data.deliverable_targets.carousel', 4)
+            ->assertJsonPath('data.deliverable_targets.stories', 12)
+            ->assertJsonPath('data.deliverable_targets.cinematic', 2);
+
+        $business->refresh();
+        $this->assertEquals($targets, $business->deliverable_targets);
+    }
+
+    public function test_authenticated_agent_can_create_cinematic_content(): void
+    {
+        $user = User::factory()->create(['role' => 'owner']);
+        $token = $user->createToken('agent-token', ['*'])->plainTextToken;
+
+        $business = Business::create(['name' => 'Gourmet Bistro', 'slug' => 'gourmet-bistro', 'monthly_retainer' => 40000]);
+
+        $response = $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson('/api/v1/content', [
+                'business_id' => $business->id,
+                'title' => 'Chef Masterpiece Brand Story',
+                'type' => 'cinematic',
+                'stage' => 'idea',
+                'priority' => 'high',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.type', 'cinematic');
+
+        $this->assertDatabaseHas('content_items', [
+            'business_id' => $business->id,
+            'title' => 'Chef Masterpiece Brand Story',
+            'type' => 'cinematic',
+        ]);
+    }
 }

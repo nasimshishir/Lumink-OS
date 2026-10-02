@@ -129,7 +129,7 @@ Available Workflows:
 1. Discover client retainers, deliverable targets & Drive folders: GET /businesses
    - Each business includes deliverable_targets (per-business, not default) and drive_folders_map.
 2. Update monthly delivery targets for a business: PATCH /businesses/{id}/targets
-   - Body: { "deliverable_targets": { "reels": N, "stories": N, "static": N, "shoots": N } }
+   - Body: { "deliverable_targets": { "reels": N, "static": N, "carousel": N, "stories": N, "cinematic": N } }
    - Owner/manager only. Always read current targets before planning — do not assume defaults.
 3. Plan content & define tasks: POST /content (accepts 'tasks' array to set up tasks simultaneously)
    - Can include inspirations array of { url, notes } objects.
@@ -142,7 +142,6 @@ IMPORTANT — Stage Proofs: Content stage transitions now require a human to sub
 Live capabilities manifest (always up to date): ${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/agent/capabilities
 Full operating manual (Markdown): ${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/agent/guide
 OpenAPI 3.0 Schema: ${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/openapi.json`;
-
 
     return (
         <>
@@ -165,8 +164,14 @@ OpenAPI 3.0 Schema: ${typeof window !== 'undefined' ? window.location.origin : '
                         <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
                             Make sure to copy this token now. For your security,
                             it will never be displayed again. Header:{' '}
-                            <code className="font-mono">Authorization: Bearer &lt;token&gt;</code> or{' '}
-                            <code className="font-mono">X-Api-Token: &lt;token&gt;</code>.
+                            <code className="font-mono">
+                                Authorization: Bearer &lt;token&gt;
+                            </code>{' '}
+                            or{' '}
+                            <code className="font-mono">
+                                X-Api-Token: &lt;token&gt;
+                            </code>
+                            .
                         </p>
                         <div className="mt-3 flex items-center gap-2">
                             <input

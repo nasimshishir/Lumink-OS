@@ -82,7 +82,7 @@ class ContentApiController extends Controller
             'referenced_shoot_ids' => ['nullable', 'array'],
             'referenced_shoot_ids.*' => ['integer', 'exists:shoot_sessions,id'],
             'title' => ['required', 'string', 'max:255'],
-            'type' => ['sometimes', 'required', 'string', 'in:reel,carousel,video,photo,story,post'],
+            'type' => ['sometimes', 'required', 'string', 'in:reel,static,carousel,story,cinematic,video,photo,post'],
             'stage' => ['sometimes', 'required', 'string', Rule::in(ContentItem::STAGES)],
             'priority' => ['sometimes', 'required', 'string', 'in:low,medium,high'],
             'brief' => ['nullable', 'string'],
@@ -234,7 +234,7 @@ class ContentApiController extends Controller
 
         $data = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'max:255'],
-            'type' => ['sometimes', 'required', 'string', 'in:reel,carousel,video,photo,story,post'],
+            'type' => ['sometimes', 'required', 'string', 'in:reel,static,carousel,story,cinematic,video,photo,post'],
             'stage' => ['sometimes', 'required', 'string', Rule::in(ContentItem::STAGES)],
             'priority' => ['sometimes', 'required', 'string', 'in:low,medium,high'],
             'primary_shoot_id' => ['nullable', 'exists:shoot_sessions,id'],

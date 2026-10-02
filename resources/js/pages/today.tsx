@@ -138,9 +138,7 @@ export default function Today({
                         >
                             <Icon className="size-5 text-primary" />
                             <div>
-                                <p className="text-xl font-semibold">
-                                    {value}
-                                </p>
+                                <p className="text-xl font-semibold">{value}</p>
                                 <p className="text-xs text-muted-foreground">
                                     {label}
                                 </p>
@@ -153,9 +151,7 @@ export default function Today({
                     <div className="flex items-center justify-between border-b px-4 py-3">
                         <div className="flex items-center gap-2">
                             <AlertCircle className="size-5 text-destructive" />
-                            <h2 className="font-semibold">
-                                Needs attention
-                            </h2>
+                            <h2 className="font-semibold">Needs attention</h2>
                         </div>
                         <span className="text-xs text-muted-foreground">
                             {tasks.length} open items
@@ -194,7 +190,7 @@ export default function Today({
                                     >
                                         <td className="py-3 pr-4">
                                             <p
-                                                className="font-medium text-foreground line-clamp-2"
+                                                className="line-clamp-2 font-medium text-foreground"
                                                 title={task.title}
                                             >
                                                 {task.title}
@@ -212,10 +208,7 @@ export default function Today({
                                             <div className="flex items-center gap-2">
                                                 <Avatar className="size-7">
                                                     <AvatarImage
-                                                        src={
-                                                            task.owner
-                                                                ?.avatar
-                                                        }
+                                                        src={task.owner?.avatar}
                                                     />
                                                     <AvatarFallback>
                                                         {task.owner?.name?.slice(
@@ -242,9 +235,7 @@ export default function Today({
                                             {dateTime(task.due_at)}
                                         </td>
                                         <td
-                                            onClick={(e) =>
-                                                e.stopPropagation()
-                                            }
+                                            onClick={(e) => e.stopPropagation()}
                                         >
                                             <div className="flex items-center gap-2">
                                                 <StatusBadge
@@ -259,9 +250,7 @@ export default function Today({
                                         </td>
                                         <td
                                             className="text-right"
-                                            onClick={(e) =>
-                                                e.stopPropagation()
-                                            }
+                                            onClick={(e) => e.stopPropagation()}
                                         >
                                             <div className="flex items-center justify-end gap-1.5">
                                                 <TaskAdvanceButton
@@ -271,9 +260,7 @@ export default function Today({
                                                 {(canManage || isOwner) && (
                                                     <DeleteTaskDialog
                                                         taskId={task.id}
-                                                        taskTitle={
-                                                            task.title
-                                                        }
+                                                        taskTitle={task.title}
                                                     />
                                                 )}
                                             </div>
@@ -300,7 +287,9 @@ export default function Today({
                     <div className="flex min-w-0 flex-col gap-5">
                         <section className="lumink-panel overflow-hidden">
                             <div className="border-b px-4 py-3">
-                                <h2 className="font-semibold">Today’s schedule</h2>
+                                <h2 className="font-semibold">
+                                    Today’s schedule
+                                </h2>
                             </div>
                             {tasks
                                 .filter(
@@ -325,13 +314,12 @@ export default function Today({
                                                 {task.title}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                {task.business?.name ?? 'Agency'}
+                                                {task.business?.name ??
+                                                    'Agency'}
                                             </p>
                                         </div>
                                         <div
-                                            onClick={(e) =>
-                                                e.stopPropagation()
-                                            }
+                                            onClick={(e) => e.stopPropagation()}
                                         >
                                             <TaskStatusDropdown
                                                 taskId={task.id}
@@ -341,9 +329,7 @@ export default function Today({
                                         </div>
                                         <div
                                             className="flex items-center justify-end gap-1"
-                                            onClick={(e) =>
-                                                e.stopPropagation()
-                                            }
+                                            onClick={(e) => e.stopPropagation()}
                                         >
                                             <TaskAdvanceButton
                                                 taskId={task.id}
@@ -373,7 +359,9 @@ export default function Today({
                         <section className="lumink-panel p-4">
                             <div className="flex items-center gap-2">
                                 <FileWarning className="size-5 text-primary" />
-                                <h2 className="font-semibold">Recent activity</h2>
+                                <h2 className="font-semibold">
+                                    Recent activity
+                                </h2>
                             </div>
                             <div className="mt-3 flex flex-col gap-3">
                                 {activity.map((event) => (
@@ -397,7 +385,9 @@ export default function Today({
                     <aside className="flex min-w-0 flex-col gap-5">
                         <section className="lumink-panel overflow-hidden">
                             <div className="flex items-center justify-between border-b px-4 py-3">
-                                <h2 className="font-semibold">Active content</h2>
+                                <h2 className="font-semibold">
+                                    Active content
+                                </h2>
                                 <Link
                                     className="text-xs font-semibold text-primary"
                                     href="/content"
@@ -432,7 +422,10 @@ export default function Today({
                                 </h2>
                                 <div className="mt-5 grid grid-cols-7 gap-1">
                                     {stages.map((stage, index) => (
-                                        <div key={stage} className="text-center">
+                                        <div
+                                            key={stage}
+                                            className="text-center"
+                                        >
                                             <div
                                                 className={`mx-auto flex size-8 items-center justify-center rounded-full border text-xs font-semibold ${index < 4 ? 'bg-primary text-primary-foreground' : 'bg-background'}`}
                                             >
@@ -463,21 +456,29 @@ export default function Today({
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="lumink-label">Direct costs</p>
+                                        <p className="lumink-label">
+                                            Direct costs
+                                        </p>
                                         <p className="mt-1 font-semibold">
                                             {money(finance?.directCosts ?? 0)}
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="lumink-label">Outstanding</p>
+                                        <p className="lumink-label">
+                                            Outstanding
+                                        </p>
                                         <p className="mt-1 font-semibold">
                                             {money(finance?.outstanding ?? 0)}
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="lumink-label">Hiring threshold</p>
+                                        <p className="lumink-label">
+                                            Hiring threshold
+                                        </p>
                                         <p className="mt-1 font-semibold">
-                                            {money(finance?.hiringThreshold ?? 0)}
+                                            {money(
+                                                finance?.hiringThreshold ?? 0,
+                                            )}
                                         </p>
                                     </div>
                                 </div>

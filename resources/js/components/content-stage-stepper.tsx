@@ -67,7 +67,8 @@ export const STAGE_CONFIG: Record<
 > = {
     idea: {
         label: 'Idea',
-        description: 'Core angle, hook concept, and creative thesis formulation.',
+        description:
+            'Core angle, hook concept, and creative thesis formulation.',
         hint: 'Provide a link to the concept doc/pitch (Google Doc, Notion, Figma) or upload a concept visual.',
         urlLabel: 'Concept Doc / Pitch URL',
         placeholderUrl: 'https://docs.google.com/document/...',
@@ -75,7 +76,8 @@ export const STAGE_CONFIG: Record<
     },
     planned: {
         label: 'Planned',
-        description: 'Storyboarding, shot breakdown, and talent/location logistics.',
+        description:
+            'Storyboarding, shot breakdown, and talent/location logistics.',
         hint: 'Provide link to storyboard, shot list doc, or upload planning board PDF/image.',
         urlLabel: 'Storyboard / Shot List URL',
         placeholderUrl: 'https://docs.google.com/... or https://notion.so/...',
@@ -83,7 +85,8 @@ export const STAGE_CONFIG: Record<
     },
     scripted: {
         label: 'Scripted',
-        description: 'Final dialogue, spoken lines, visual cues, and caption drafts.',
+        description:
+            'Final dialogue, spoken lines, visual cues, and caption drafts.',
         hint: 'Attach link to finalized Google Doc script, teleprompter doc, or upload script PDF.',
         urlLabel: 'Script Google Doc / Notion URL',
         placeholderUrl: 'https://docs.google.com/document/...',
@@ -91,7 +94,8 @@ export const STAGE_CONFIG: Record<
     },
     shoot_scheduled: {
         label: 'Shoot Scheduled',
-        description: 'Talent, studio/location locked, and call sheet confirmed.',
+        description:
+            'Talent, studio/location locked, and call sheet confirmed.',
         hint: 'Provide calendar invite link, call sheet link, or upload signed call sheet/booking confirmation.',
         urlLabel: 'Call Sheet / Calendar URL',
         placeholderUrl: 'https://calendar.google.com/... or https://...',
@@ -99,7 +103,8 @@ export const STAGE_CONFIG: Record<
     },
     shot: {
         label: 'Shot',
-        description: 'Camera wrap; raw footage captured, logged, and uploaded to storage.',
+        description:
+            'Camera wrap; raw footage captured, logged, and uploaded to storage.',
         hint: 'Provide Google Drive raw footage folder link or upload camera roll log sheet.',
         urlLabel: 'Raw Footage Drive Folder Link',
         placeholderUrl: 'https://drive.google.com/drive/folders/...',
@@ -107,15 +112,18 @@ export const STAGE_CONFIG: Record<
     },
     editing: {
         label: 'Editing',
-        description: 'Rough cut, sound design, color grading, motion graphics, and captions.',
+        description:
+            'Rough cut, sound design, color grading, motion graphics, and captions.',
         hint: 'Provide link to preview video cut (Frame.io, Google Drive, YouTube Unlisted, Loom).',
         urlLabel: 'Draft / Preview Video URL',
         placeholderUrl: 'https://frame.io/... or https://drive.google.com/...',
-        fileHint: 'Upload exported video cut, render stills, or revision timeline screenshot',
+        fileHint:
+            'Upload exported video cut, render stills, or revision timeline screenshot',
     },
     internal_review: {
         label: 'Internal Review',
-        description: 'Creative Director & QA check for pacing, audio sync, and brand guidelines.',
+        description:
+            'Creative Director & QA check for pacing, audio sync, and brand guidelines.',
         hint: 'Provide QA review notes doc link or upload QA checklist approval screenshot.',
         urlLabel: 'QA / Internal Review Doc URL',
         placeholderUrl: 'https://docs.google.com/...',
@@ -123,27 +131,34 @@ export const STAGE_CONFIG: Record<
     },
     client_review: {
         label: 'Client Review',
-        description: 'Delivered to client approval portal or reviewed during presentation.',
+        description:
+            'Delivered to client approval portal or reviewed during presentation.',
         hint: 'Provide link to client approval portal or client review email thread.',
         urlLabel: 'Client Portal / Review Link',
         placeholderUrl: 'https://agency.sterkg.com/approve/... or https://...',
-        fileHint: 'Upload client submission receipt or feedback summary screenshot',
+        fileHint:
+            'Upload client submission receipt or feedback summary screenshot',
     },
     approved: {
         label: 'Approved',
-        description: 'Written client sign-off received; cleared for publishing.',
+        description:
+            'Written client sign-off received; cleared for publishing.',
         hint: 'Provide approval record link or upload screenshot of written client approval (email/Slack/portal).',
         urlLabel: 'Client Approval Record URL',
         placeholderUrl: 'https://agency.sterkg.com/approve/...',
-        fileHint: 'Upload written approval screenshot (email, Slack, WhatsApp, portal)',
+        fileHint:
+            'Upload written approval screenshot (email, Slack, WhatsApp, portal)',
     },
     scheduled: {
         label: 'Scheduled',
-        description: 'Queued in social scheduler (Meta Suite, YouTube, TikTok, Buffer, Hootsuite).',
+        description:
+            'Queued in social scheduler (Meta Suite, YouTube, TikTok, Buffer, Hootsuite).',
         hint: 'Provide scheduling dashboard URL or upload screenshot showing post queued in calendar.',
         urlLabel: 'Scheduler Dashboard URL',
-        placeholderUrl: 'https://business.facebook.com/... or https://studio.youtube.com/...',
-        fileHint: 'Upload screenshot of scheduling queue showing date/time locked',
+        placeholderUrl:
+            'https://business.facebook.com/... or https://studio.youtube.com/...',
+        fileHint:
+            'Upload screenshot of scheduling queue showing date/time locked',
     },
     published: {
         label: 'Published',
@@ -257,7 +272,9 @@ export function ContentStageStepper({
                 </div>
 
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>Click any stage to update status or submit proof</span>
+                    <span>
+                        Click any stage to update status or submit proof
+                    </span>
                 </div>
             </div>
 
@@ -461,7 +478,9 @@ function StageStatusModal({
             onError: (errors) => {
                 setIsSubmitting(false);
                 const firstErr = Object.values(errors)[0] as string | undefined;
-                setValidationError(firstErr || 'Failed to update stage status.');
+                setValidationError(
+                    firstErr || 'Failed to update stage status.',
+                );
             },
         });
     }
@@ -599,7 +618,10 @@ function StageStatusModal({
                             </Badge>
                         )}
                         {currentStatus === 'pending' && (
-                            <Badge variant="outline" className="text-xs text-muted-foreground">
+                            <Badge
+                                variant="outline"
+                                className="text-xs text-muted-foreground"
+                            >
                                 Pending
                             </Badge>
                         )}
@@ -675,7 +697,8 @@ function StageStatusModal({
                                 Reset stage to Pending
                             </p>
                             <p className="mt-1 text-muted-foreground">
-                                Marks this stage as not started yet. Any team member can start working on it whenever ready.
+                                Marks this stage as not started yet. Any team
+                                member can start working on it whenever ready.
                             </p>
                         </div>
 
@@ -694,7 +717,10 @@ function StageStatusModal({
                                     type="button"
                                     variant="default"
                                     size="sm"
-                                    disabled={isSubmitting || currentStatus === 'pending'}
+                                    disabled={
+                                        isSubmitting ||
+                                        currentStatus === 'pending'
+                                    }
                                     onClick={() => handleSetStatus('pending')}
                                     className="h-8 gap-1.5 text-xs"
                                 >
@@ -719,7 +745,9 @@ function StageStatusModal({
                                 Start Working on {config.label}
                             </p>
                             <p className="mt-1 leading-relaxed text-muted-foreground">
-                                Marks this stage as actively in progress. Multiple stages can be worked on concurrently by different team members.
+                                Marks this stage as actively in progress.
+                                Multiple stages can be worked on concurrently by
+                                different team members.
                             </p>
                             {existingProof?.user && (
                                 <p className="mt-2 text-[11px] text-muted-foreground">
@@ -732,7 +760,10 @@ function StageStatusModal({
                         </div>
 
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="in-progress-notes" className="text-xs font-semibold">
+                            <Label
+                                htmlFor="in-progress-notes"
+                                className="text-xs font-semibold"
+                            >
                                 Working Notes / Scope (optional)
                             </Label>
                             <Textarea
@@ -761,7 +792,9 @@ function StageStatusModal({
                                     variant="default"
                                     size="sm"
                                     disabled={isSubmitting}
-                                    onClick={() => handleSetStatus('in_progress')}
+                                    onClick={() =>
+                                        handleSetStatus('in_progress')
+                                    }
                                     className="h-8 gap-1.5 bg-amber-600 text-xs text-white hover:bg-amber-700"
                                 >
                                     {isSubmitting ? (
@@ -789,7 +822,10 @@ function StageStatusModal({
                                         <div className="flex items-center gap-2">
                                             <Avatar className="size-5">
                                                 <AvatarImage
-                                                    src={existingProof?.user?.avatar}
+                                                    src={
+                                                        existingProof?.user
+                                                            ?.avatar
+                                                    }
                                                 />
                                                 <AvatarFallback className="text-[10px]">
                                                     {existingProof?.user?.name?.slice(
@@ -801,13 +837,15 @@ function StageStatusModal({
                                             <span>
                                                 Completed by{' '}
                                                 <strong className="text-foreground">
-                                                    {existingProof?.user?.name ??
-                                                        'Team Member'}
+                                                    {existingProof?.user
+                                                        ?.name ?? 'Team Member'}
                                                 </strong>
                                             </span>
                                         </div>
                                         <span>
-                                            {dateTime(existingProof?.verified_at)}
+                                            {dateTime(
+                                                existingProof?.verified_at,
+                                            )}
                                         </span>
                                     </div>
 
@@ -829,7 +867,9 @@ function StageStatusModal({
                                                 className="h-7 shrink-0 gap-1 text-xs"
                                             >
                                                 <a
-                                                    href={existingProof.proof_url}
+                                                    href={
+                                                        existingProof.proof_url
+                                                    }
                                                     target="_blank"
                                                     rel="noreferrer"
                                                 >
@@ -854,11 +894,15 @@ function StageStatusModal({
 
                                     {/* Attachments */}
                                     {existingProof?.attachments &&
-                                        existingProof.attachments.length > 0 && (
+                                        existingProof.attachments.length >
+                                            0 && (
                                             <div className="flex flex-col gap-1.5 pt-1">
                                                 <p className="text-[11px] font-semibold text-muted-foreground">
                                                     Proof Attachments (
-                                                    {existingProof.attachments.length}
+                                                    {
+                                                        existingProof
+                                                            .attachments.length
+                                                    }
                                                     ):
                                                 </p>
                                                 <div className="grid grid-cols-2 gap-2">
@@ -875,7 +919,9 @@ function StageStatusModal({
                                                             return (
                                                                 <a
                                                                     key={idx}
-                                                                    href={att.url}
+                                                                    href={
+                                                                        att.url
+                                                                    }
                                                                     target="_blank"
                                                                     rel="noreferrer"
                                                                     className="group flex items-center gap-2 rounded border bg-background p-2 transition-colors hover:border-primary"
@@ -897,10 +943,14 @@ function StageStatusModal({
                                                                     )}
                                                                     <div className="min-w-0 flex-1">
                                                                         <p className="truncate font-medium group-hover:text-primary">
-                                                                            {att.name}
+                                                                            {
+                                                                                att.name
+                                                                            }
                                                                         </p>
                                                                         <span className="text-[10px] text-muted-foreground">
-                                                                            View file ↗
+                                                                            View
+                                                                            file
+                                                                            ↗
                                                                         </span>
                                                                     </div>
                                                                 </a>
@@ -919,7 +969,9 @@ function StageStatusModal({
                                                 type="button"
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => setIsEditingProof(true)}
+                                                onClick={() =>
+                                                    setIsEditingProof(true)
+                                                }
                                                 className="gap-1.5 text-xs"
                                             >
                                                 <Pencil className="size-3.5" />
@@ -929,7 +981,11 @@ function StageStatusModal({
                                                 type="button"
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => handleSetStatus('in_progress')}
+                                                onClick={() =>
+                                                    handleSetStatus(
+                                                        'in_progress',
+                                                    )
+                                                }
                                                 className="h-8 text-xs text-amber-600 hover:bg-amber-500/10"
                                             >
                                                 <Play className="size-3 fill-current" />
@@ -975,7 +1031,11 @@ function StageStatusModal({
                                         Mandatory Verification Requirement:
                                     </p>
                                     <p className="leading-relaxed text-muted-foreground">
-                                        To complete this stage, you must provide verifiable proof: enter a <strong>Proof Link</strong> OR upload a <strong>File / Screenshot</strong>, plus a completion summary.
+                                        To complete this stage, you must provide
+                                        verifiable proof: enter a{' '}
+                                        <strong>Proof Link</strong> OR upload a{' '}
+                                        <strong>File / Screenshot</strong>, plus
+                                        a completion summary.
                                     </p>
                                     <p className="mt-1 text-[11px] text-muted-foreground">
                                         {config.hint}
@@ -984,7 +1044,10 @@ function StageStatusModal({
 
                                 {/* Proof Link Field */}
                                 <div className="flex flex-col gap-1.5">
-                                    <Label htmlFor="proof-url" className="text-xs font-semibold">
+                                    <Label
+                                        htmlFor="proof-url"
+                                        className="text-xs font-semibold"
+                                    >
                                         {config.urlLabel}
                                     </Label>
                                     <Input
@@ -999,13 +1062,17 @@ function StageStatusModal({
                                         className="h-9 text-xs"
                                     />
                                     <span className="text-[10px] text-muted-foreground">
-                                        Paste Google Drive, Frame.io, Google Doc, scheduling link, or live post URL.
+                                        Paste Google Drive, Frame.io, Google
+                                        Doc, scheduling link, or live post URL.
                                     </span>
                                 </div>
 
                                 {/* Upload Proof Files */}
                                 <div className="flex flex-col gap-1.5">
-                                    <Label htmlFor="proof-files" className="text-xs font-semibold">
+                                    <Label
+                                        htmlFor="proof-files"
+                                        className="text-xs font-semibold"
+                                    >
                                         Upload Proof Files or Screenshots
                                     </Label>
                                     <Input
@@ -1021,14 +1088,19 @@ function StageStatusModal({
                                     {files.length > 0 && (
                                         <p className="text-[11px] font-medium text-primary">
                                             {files.length} file(s) selected:{' '}
-                                            {files.map((f) => f.name).join(', ')}
+                                            {files
+                                                .map((f) => f.name)
+                                                .join(', ')}
                                         </p>
                                     )}
                                 </div>
 
                                 {/* Completion Notes (Required) */}
                                 <div className="flex flex-col gap-1.5">
-                                    <Label htmlFor="proof-notes" className="text-xs font-semibold">
+                                    <Label
+                                        htmlFor="proof-notes"
+                                        className="text-xs font-semibold"
+                                    >
                                         Completion Summary & Notes *
                                     </Label>
                                     <Textarea
@@ -1071,7 +1143,9 @@ function StageStatusModal({
                                             type="button"
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => setIsEditingProof(false)}
+                                            onClick={() =>
+                                                setIsEditingProof(false)
+                                            }
                                             className="text-xs"
                                         >
                                             Cancel Editing

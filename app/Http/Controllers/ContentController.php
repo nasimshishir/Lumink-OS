@@ -82,7 +82,7 @@ class ContentController extends Controller
 
         $data = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'max:255'],
-            'type' => ['sometimes', 'required', 'string', 'in:reel,story,static,carousel,other'],
+            'type' => ['sometimes', 'required', 'string', 'in:reel,story,static,carousel,cinematic,other'],
             'priority' => ['sometimes', 'required', 'in:low,medium,high'],
             'publish_at' => ['sometimes', 'nullable', 'date'],
             'owner_id' => ['sometimes', 'nullable', 'exists:users,id'],
@@ -170,7 +170,7 @@ class ContentController extends Controller
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'string', 'in:reel,story,static,carousel,other'],
+            'type' => ['required', 'string', 'in:reel,story,static,carousel,cinematic,other'],
             'business_id' => ['required', 'exists:businesses,id'],
             'publish_at' => ['nullable', 'date'],
             'thumbnail_url' => ['nullable', 'string', 'max:1000'],

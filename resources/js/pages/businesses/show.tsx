@@ -134,8 +134,18 @@ type Business = {
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
 ];
 
 function isSameDay(a: Date, b: Date) {
@@ -148,17 +158,14 @@ function isSameDay(a: Date, b: Date) {
 
 // ─── EditTargetsDialog ────────────────────────────────────────────────────────
 
-function EditTargetsDialog({
-    business,
-}: {
-    business: Business;
-}) {
+function EditTargetsDialog({ business }: { business: Business }) {
     const [open, setOpen] = useState(false);
     const defaults = business.deliverable_targets ?? {};
     const [reels, setReels] = useState(String(defaults.reels ?? 10));
-    const [stories, setStories] = useState(String(defaults.stories ?? 12));
     const [statics, setStatics] = useState(String(defaults.static ?? 4));
-    const [shoots, setShoots] = useState(String(defaults.shoots ?? 4));
+    const [carousel, setCarousel] = useState(String(defaults.carousel ?? 4));
+    const [stories, setStories] = useState(String(defaults.stories ?? 12));
+    const [cinematic, setCinematic] = useState(String(defaults.cinematic ?? 2));
     const [saving, setSaving] = useState(false);
 
     function save() {
@@ -168,9 +175,10 @@ function EditTargetsDialog({
             {
                 deliverable_targets: {
                     reels: Number(reels),
-                    stories: Number(stories),
                     static: Number(statics),
-                    shoots: Number(shoots),
+                    carousel: Number(carousel),
+                    stories: Number(stories),
+                    cinematic: Number(cinematic),
                 },
             },
             {
@@ -202,9 +210,26 @@ function EditTargetsDialog({
                     <div className="grid grid-cols-2 gap-4">
                         {[
                             { label: 'Reels', value: reels, set: setReels },
-                            { label: 'Stories', value: stories, set: setStories },
-                            { label: 'Statics', value: statics, set: setStatics },
-                            { label: 'Shoots', value: shoots, set: setShoots },
+                            {
+                                label: 'Static',
+                                value: statics,
+                                set: setStatics,
+                            },
+                            {
+                                label: 'Carousel',
+                                value: carousel,
+                                set: setCarousel,
+                            },
+                            {
+                                label: 'Stories',
+                                value: stories,
+                                set: setStories,
+                            },
+                            {
+                                label: 'Cinematic',
+                                value: cinematic,
+                                set: setCinematic,
+                            },
                         ].map(({ label, value, set }) => (
                             <div key={label} className="flex flex-col gap-2">
                                 <Label>{label}</Label>
@@ -218,7 +243,10 @@ function EditTargetsDialog({
                         ))}
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setOpen(false)}>
+                        <Button
+                            variant="outline"
+                            onClick={() => setOpen(false)}
+                        >
                             Cancel
                         </Button>
                         <Button onClick={save} disabled={saving}>
@@ -433,11 +461,7 @@ type CalendarEvent = {
     url: string;
 };
 
-function BusinessCalendar({
-    events,
-}: {
-    events: CalendarEvent[];
-}) {
+function BusinessCalendar({ events }: { events: CalendarEvent[] }) {
     const today = new Date();
     const [current, setCurrent] = useState(
         new Date(today.getFullYear(), today.getMonth(), 1),
@@ -452,12 +476,12 @@ function BusinessCalendar({
         const cells: (Date | null)[] = [];
 
         for (let i = 0; i < firstDay; i++) {
-cells.push(null);
-}
+            cells.push(null);
+        }
 
         for (let d = 1; d <= daysInMonth; d++) {
-cells.push(new Date(year, month, d));
-}
+            cells.push(new Date(year, month, d));
+        }
 
         return cells;
     }, [year, month]);
@@ -529,7 +553,8 @@ cells.push(new Date(year, month, d));
                     }
 
                     const isToday = isSameDay(day, today);
-                    const dayEvents = eventsByDate[day.getDate().toString()] ?? [];
+                    const dayEvents =
+                        eventsByDate[day.getDate().toString()] ?? [];
 
                     return (
                         <div
@@ -550,12 +575,12 @@ cells.push(new Date(year, month, d));
                                     <Link
                                         key={`${ev.kind}-${ev.id}`}
                                         href={ev.url}
-                                        className={`truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight ${
+                                        className={`truncate rounded px-1 py-0.5 text-[10px] leading-tight font-medium ${
                                             ev.kind === 'content'
                                                 ? 'bg-primary/10 text-primary hover:bg-primary/20'
                                                 : ev.kind === 'shoot'
-                                                ? 'bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-400'
-                                                : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                                  ? 'bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-400'
+                                                  : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
                                         }`}
                                         title={ev.title}
                                     >
@@ -621,13 +646,16 @@ export default function BusinessShow({
     const delivered = {
         reels: business.content_items.filter((item) => item.type === 'reel')
             .length,
-        stories: business.content_items.filter((item) => item.type === 'story')
-            .length,
         static: business.content_items.filter((item) =>
             ['static', 'photo', 'post'].includes(item.type),
         ).length,
-        shoots: (business.shoot_sessions ?? []).filter(
-            (shoot) => shoot.status !== 'canceled',
+        carousel: business.content_items.filter(
+            (item) => item.type === 'carousel',
+        ).length,
+        stories: business.content_items.filter((item) => item.type === 'story')
+            .length,
+        cinematic: business.content_items.filter(
+            (item) => item.type === 'cinematic',
         ).length,
     };
 
@@ -885,7 +913,7 @@ export default function BusinessShow({
                             {label}
                             {badge !== undefined && (
                                 <span
-                                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+                                    className={`rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold ${
                                         activeTab === label
                                             ? 'bg-primary text-primary-foreground'
                                             : 'bg-muted text-muted-foreground'
@@ -910,44 +938,46 @@ export default function BusinessShow({
                                     <EditTargetsDialog business={business} />
                                 )}
                             </div>
-                            <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                                {(['reels', 'stories', 'static', 'shoots'] as const).map(
-                                    (key) => {
-                                        const value = delivered[key];
-                                        const target = Number(
-                                            targets[key] ?? 0,
-                                        );
-                                        const percent = target
-                                            ? Math.min(
-                                                  100,
-                                                  Math.round(
-                                                      (value / target) * 100,
-                                                  ),
-                                              )
-                                            : 0;
+                            <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
+                                {(
+                                    [
+                                        'reels',
+                                        'static',
+                                        'carousel',
+                                        'stories',
+                                        'cinematic',
+                                    ] as const
+                                ).map((key) => {
+                                    const value = delivered[key];
+                                    const target = Number(targets[key] ?? 0);
+                                    const percent = target
+                                        ? Math.min(
+                                              100,
+                                              Math.round(
+                                                  (value / target) * 100,
+                                              ),
+                                          )
+                                        : 0;
 
-                                        return (
-                                            <div key={key}>
-                                                <div className="flex justify-between text-sm">
-                                                    <span>
-                                                        {humanize(key)}
-                                                    </span>
-                                                    <strong>
-                                                        {value} / {target}
-                                                    </strong>
-                                                </div>
-                                                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                                                    <div
-                                                        className="h-full bg-primary"
-                                                        style={{
-                                                            width: `${percent}%`,
-                                                        }}
-                                                    />
-                                                </div>
+                                    return (
+                                        <div key={key}>
+                                            <div className="flex justify-between text-sm">
+                                                <span>{humanize(key)}</span>
+                                                <strong>
+                                                    {value} / {target}
+                                                </strong>
                                             </div>
-                                        );
-                                    },
-                                )}
+                                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                                                <div
+                                                    className="h-full bg-primary"
+                                                    style={{
+                                                        width: `${percent}%`,
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </section>
 
@@ -1321,9 +1351,7 @@ export default function BusinessShow({
                         <section className="lumink-panel overflow-hidden">
                             <div className="flex items-center gap-2 border-b px-4 py-3">
                                 <FolderOpen className="size-4" />
-                                <h2 className="font-semibold">
-                                    Drive folders
-                                </h2>
+                                <h2 className="font-semibold">Drive folders</h2>
                             </div>
                             <div className="divide-y">
                                 {business.drive_folder_url && (
@@ -1344,22 +1372,21 @@ export default function BusinessShow({
                                         <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
                                     </a>
                                 )}
-                                {Object.entries(driveMap).map(
-                                    ([label, url]) =>
-                                        url ? (
-                                            <a
-                                                key={label}
-                                                href={url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50"
-                                            >
-                                                <p className="font-medium capitalize">
-                                                    {humanize(label)}
-                                                </p>
-                                                <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
-                                            </a>
-                                        ) : null,
+                                {Object.entries(driveMap).map(([label, url]) =>
+                                    url ? (
+                                        <a
+                                            key={label}
+                                            href={url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50"
+                                        >
+                                            <p className="font-medium capitalize">
+                                                {humanize(label)}
+                                            </p>
+                                            <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
+                                        </a>
+                                    ) : null,
                                 )}
                                 {!hasAnyDrive && (
                                     <p className="px-4 py-8 text-center text-sm text-muted-foreground">
@@ -1480,8 +1507,12 @@ export default function BusinessShow({
                                                             ) : (
                                                                 <TrendingDown className="size-3.5" />
                                                             )}
-                                                            {pct >= 0 ? '+' : ''}
-                                                            {period.sales_change_percent}
+                                                            {pct >= 0
+                                                                ? '+'
+                                                                : ''}
+                                                            {
+                                                                period.sales_change_percent
+                                                            }
                                                             %
                                                         </span>
                                                     </td>
@@ -1528,9 +1559,7 @@ export default function BusinessShow({
                                             <td className="font-medium">
                                                 {inv.number}
                                             </td>
-                                            <td>
-                                                {shortDate(inv.issue_date)}
-                                            </td>
+                                            <td>{shortDate(inv.issue_date)}</td>
                                             <td>{shortDate(inv.due_date)}</td>
                                             <td className="text-right font-semibold">
                                                 {money(inv.total)}
@@ -1621,21 +1650,17 @@ export default function BusinessShow({
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {(business.expenses ?? []).map(
-                                            (ex) => (
-                                                <tr key={ex.id}>
-                                                    <td>
-                                                        {shortDate(ex.spent_on)}
-                                                    </td>
-                                                    <td>
-                                                        {humanize(ex.category)}
-                                                    </td>
-                                                    <td className="text-right font-medium">
-                                                        {money(ex.amount)}
-                                                    </td>
-                                                </tr>
-                                            ),
-                                        )}
+                                        {(business.expenses ?? []).map((ex) => (
+                                            <tr key={ex.id}>
+                                                <td>
+                                                    {shortDate(ex.spent_on)}
+                                                </td>
+                                                <td>{humanize(ex.category)}</td>
+                                                <td className="text-right font-medium">
+                                                    {money(ex.amount)}
+                                                </td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
                             )}

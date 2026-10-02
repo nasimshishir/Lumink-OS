@@ -121,16 +121,19 @@ export function AddContentDialog({
                                 <SelectContent>
                                     <SelectGroup>
                                         <SelectItem value="reel">
-                                            Reel
-                                        </SelectItem>
-                                        <SelectItem value="story">
-                                            Story
+                                            Reels
                                         </SelectItem>
                                         <SelectItem value="static">
-                                            Static Image
+                                            Static
                                         </SelectItem>
                                         <SelectItem value="carousel">
                                             Carousel
+                                        </SelectItem>
+                                        <SelectItem value="story">
+                                            Stories
+                                        </SelectItem>
+                                        <SelectItem value="cinematic">
+                                            Cinematic
                                         </SelectItem>
                                         <SelectItem value="other">
                                             Other

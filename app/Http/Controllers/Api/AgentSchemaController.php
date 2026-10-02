@@ -58,8 +58,8 @@ class AgentSchemaController extends Controller
                     'action' => 'GET /api/v1/businesses or GET /api/v1/businesses/{id}',
                 ],
                 '1b_update_delivery_targets' => [
-                    'description' => 'Update the monthly delivery target counts (reels, stories, static, shoots) for a specific client business. Only callable by owners and managers.',
-                    'action' => 'PATCH /api/v1/businesses/{id}/targets with { deliverable_targets: { reels: N, stories: N, static: N, shoots: N } }',
+                    'description' => 'Update the monthly delivery target counts (reels, static, carousel, stories, cinematic) for a specific client business. Only callable by owners and managers.',
+                    'action' => 'PATCH /api/v1/businesses/{id}/targets with { deliverable_targets: { reels: N, static: N, carousel: N, stories: N, cinematic: N } }',
                 ],
                 '1c_broll_bank_inspection' => [
                     'description' => 'Search existing shoot archive & B-roll library for footage keywords (e.g. sizzle, cocktail, chef) to reuse in content without scheduling new shoots.',
@@ -93,7 +93,7 @@ class AgentSchemaController extends Controller
             ],
             'enums' => [
                 'content_stages' => ContentItem::STAGES,
-                'content_types' => ['reel', 'carousel', 'video', 'photo', 'story', 'post'],
+                'content_types' => ['reel', 'static', 'carousel', 'story', 'cinematic', 'video', 'photo', 'post'],
                 'content_priorities' => ['low', 'medium', 'high'],
                 'task_types' => ['content', 'editing', 'shoot', 'design', 'strategy', 'general'],
                 'task_statuses' => ['todo', 'in_progress', 'blocked', 'review', 'done'],
@@ -153,7 +153,7 @@ class AgentSchemaController extends Controller
                             'id' => ['type' => 'integer'],
                             'business_id' => ['type' => 'integer'],
                             'title' => ['type' => 'string'],
-                            'type' => ['type' => 'string', 'enum' => ['reel', 'carousel', 'video', 'photo', 'story', 'post']],
+                            'type' => ['type' => 'string', 'enum' => ['reel', 'static', 'carousel', 'story', 'cinematic', 'video', 'photo', 'post']],
                             'stage' => ['type' => 'string', 'enum' => ContentItem::STAGES],
                             'priority' => ['type' => 'string', 'enum' => ['low', 'medium', 'high']],
                             'brief' => ['type' => 'string', 'nullable' => true],
@@ -218,7 +218,7 @@ class AgentSchemaController extends Controller
                                         'properties' => [
                                             'business_id' => ['type' => 'integer'],
                                             'title' => ['type' => 'string'],
-                                            'type' => ['type' => 'string', 'enum' => ['reel', 'carousel', 'video', 'photo', 'story', 'post'], 'default' => 'reel'],
+                                            'type' => ['type' => 'string', 'enum' => ['reel', 'static', 'carousel', 'story', 'cinematic', 'video', 'photo', 'post'], 'default' => 'reel'],
                                             'stage' => ['type' => 'string', 'enum' => ContentItem::STAGES, 'default' => 'idea'],
                                             'priority' => ['type' => 'string', 'enum' => ['low', 'medium', 'high'], 'default' => 'medium'],
                                             'brief' => ['type' => 'string'],
@@ -534,7 +534,7 @@ Token Diagnostic: `GET {$baseUrl}/agent/token-test` to verify token reception an
 Query client businesses to discover their monthly retainers, **per-business configurable** deliverable targets, and Drive folder structure.
 - `GET /businesses`: Lists all active businesses. Each includes `deliverable_targets` (per-business) and `drive_folders_map`.
 - `GET /businesses/{id}`: Full detail with active campaigns, content pipeline, and upcoming tasks.
-- `PATCH /businesses/{id}/targets`: Update `{ deliverable_targets: { reels: N, stories: N, static: N, shoots: N } }`. Owner/manager only.
+- `PATCH /businesses/{id}/targets`: Update `{ deliverable_targets: { reels: N, static: N, carousel: N, stories: N, cinematic: N } }`. Owner/manager only.
 
 > **Important**: `deliverable_targets` is now set individually per client. Always read it fresh before making monthly planning recommendations.
 
@@ -547,7 +547,7 @@ Use these when telling the team where to find or upload assets.
 
 ### 3. Plan Content Deliverables & Reuse Archive Footage
 - `GET /shoots?business_id={id}&tag={keyword}`: Search the client's B-roll archive first — reuse existing footage to maximise production ROI.
-- `POST /content`: Create deliverable. Include `business_id`, `title`, `type` (`reel`, `carousel`, `video`, `photo`, `story`, `post`), `stage`, `brief`, `hook`, `script`, `cta`, `target_audience`, `publish_at`.
+- `POST /content`: Create deliverable. Include `business_id`, `title`, `type` (`reel`, `static`, `carousel`, `story`, `cinematic`, `video`, `photo`, `post`), `stage`, `brief`, `hook`, `script`, `cta`, `target_audience`, `publish_at`.
   - **Cross-Reference Shoots**: Pass `primary_shoot_id` (dedicated shoot) and `referenced_shoot_ids: [id1, id2]` (past shoots with reusable B-roll).
   - Embed a `tasks` array inside `POST /content` to create all sub-tasks in one request.
   - Optionally include `inspirations` array of `{ url, notes }` objects for the inspiration section.
@@ -573,7 +573,7 @@ You can SET a content's stage via `PATCH /content/{id}` with `{ stage: "..." }`.
 
 ## Enums
 - **Content Stages**: `idea`, `planned`, `scripted`, `shoot_scheduled`, `shot`, `editing`, `internal_review`, `client_review`, `approved`, `scheduled`, `published`
-- **Content Types**: `reel`, `carousel`, `video`, `photo`, `story`, `post`
+- **Content Types**: `reel`, `static`, `carousel`, `story`, `cinematic`, `video`, `photo`, `post`
 - **Task Types**: `content`, `editing`, `shoot`, `design`, `strategy`, `general`
 - **Task Statuses**: `todo`, `in_progress`, `blocked`, `review`, `done`
 - **Priorities**: `low`, `medium`, `high`

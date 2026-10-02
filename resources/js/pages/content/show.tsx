@@ -308,16 +308,19 @@ export default function ContentShow({
                                         Stage Pipeline
                                     </h3>
                                     <span className="text-xs font-semibold text-emerald-600">
-                                        {stages.filter(
-                                            (s) =>
-                                                getStageStatus(
-                                                    s,
-                                                    content.stage,
-                                                    content.proofs?.find(
-                                                        (p) => p.stage === s,
-                                                    ),
-                                                ) === 'completed',
-                                        ).length}
+                                        {
+                                            stages.filter(
+                                                (s) =>
+                                                    getStageStatus(
+                                                        s,
+                                                        content.stage,
+                                                        content.proofs?.find(
+                                                            (p) =>
+                                                                p.stage === s,
+                                                        ),
+                                                    ) === 'completed',
+                                            ).length
+                                        }
                                         /{stages.length} completed
                                     </span>
                                 </div>
@@ -425,7 +428,9 @@ export default function ContentShow({
                                         <td>
                                             {task.owner?.name ?? 'Unassigned'}
                                         </td>
-                                        <td onClick={(e) => e.stopPropagation()}>
+                                        <td
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
                                             <TaskStatusDropdown
                                                 taskId={task.id}
                                                 status={task.status}

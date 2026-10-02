@@ -1,11 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import {
-    BriefcaseBusiness,
-    Plus,
-    Power,
-    PowerOff,
-    Trash2,
-} from 'lucide-react';
+import { BriefcaseBusiness, Plus, Power, PowerOff, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { PageHeading } from '@/components/page-heading';
@@ -54,7 +48,13 @@ function AddBusinessDialog() {
         primary_contact_phone: '',
         monthly_retainer: 25000,
         agreement_start: new Date().toISOString().slice(0, 10),
-        deliverable_targets: { reels: 10, stories: 12, static: 4, shoots: 4 },
+        deliverable_targets: {
+            reels: 10,
+            static: 4,
+            carousel: 4,
+            stories: 12,
+            cinematic: 2,
+        },
     });
 
     function submit(event: FormEvent) {

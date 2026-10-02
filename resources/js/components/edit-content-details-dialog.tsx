@@ -214,16 +214,19 @@ export function EditContentDetailsDialog({
                                     <SelectContent>
                                         <SelectGroup>
                                             <SelectItem value="reel">
-                                                Reel / Video
-                                            </SelectItem>
-                                            <SelectItem value="story">
-                                                Story
+                                                Reels
                                             </SelectItem>
                                             <SelectItem value="static">
-                                                Static Post
+                                                Static
                                             </SelectItem>
                                             <SelectItem value="carousel">
                                                 Carousel
+                                            </SelectItem>
+                                            <SelectItem value="story">
+                                                Stories
+                                            </SelectItem>
+                                            <SelectItem value="cinematic">
+                                                Cinematic
                                             </SelectItem>
                                             <SelectItem value="other">
                                                 Other

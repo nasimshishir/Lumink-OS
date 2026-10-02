@@ -71,8 +71,10 @@ class BusinessApiController extends Controller
         $data = $request->validate([
             'deliverable_targets' => ['required', 'array'],
             'deliverable_targets.reels' => ['sometimes', 'integer', 'min:0'],
-            'deliverable_targets.stories' => ['sometimes', 'integer', 'min:0'],
             'deliverable_targets.static' => ['sometimes', 'integer', 'min:0'],
+            'deliverable_targets.carousel' => ['sometimes', 'integer', 'min:0'],
+            'deliverable_targets.stories' => ['sometimes', 'integer', 'min:0'],
+            'deliverable_targets.cinematic' => ['sometimes', 'integer', 'min:0'],
             'deliverable_targets.shoots' => ['sometimes', 'integer', 'min:0'],
         ]);
 

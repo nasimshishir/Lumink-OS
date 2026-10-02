@@ -556,7 +556,8 @@ function AddInspirationDialog({
                                 htmlFor="insp-url"
                                 className="text-xs font-semibold"
                             >
-                                Reference URL (Instagram, TikTok, YouTube, etc.) *
+                                Reference URL (Instagram, TikTok, YouTube, etc.)
+                                *
                             </Label>
                             <Input
                                 id="insp-url"
