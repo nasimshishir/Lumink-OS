@@ -76,4 +76,10 @@ class Business extends Model
     {
         return $this->hasMany(PerformancePeriod::class);
     }
+
+    /** @return HasMany<User, $this> */
+    public function clientUsers(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
 }

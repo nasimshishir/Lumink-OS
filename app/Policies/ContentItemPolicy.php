@@ -23,6 +23,12 @@ class ContentItemPolicy
 
     public function view(User $user, ContentItem $contentItem): bool
     {
+        if ($user->isClient()) {
+            return $user->business_id !== null
+                && $user->business_id === $contentItem->business_id
+                && in_array($contentItem->stage, ['client_review', 'approved', 'scheduled', 'published'], true);
+        }
+
         return $user->canManageOperations()
             || $contentItem->owner_id === $user->id
             || $contentItem->tasks()->where('owner_id', $user->id)->exists();

@@ -46,6 +46,8 @@ type User = {
     avatar?: string;
     is_active: boolean;
     created_at: string;
+    business_id?: number | null;
+    business?: { id: number; name: string } | null;
 };
 
 type Invitation = {
@@ -54,11 +56,18 @@ type Invitation = {
     role: string;
     created_at: string;
     inviter?: { id: number; name: string };
+    business_id?: number | null;
+    business?: { id: number; name: string } | null;
 };
 
-function InviteDialog() {
+type BusinessOption = {
+    id: number;
+    name: string;
+};
+
+function InviteDialog({ businesses = [] }: { businesses?: BusinessOption[] }) {
     const [open, setOpen] = useState(false);
-    const form = useForm({ email: '', role: 'specialist' });
+    const form = useForm({ email: '', role: 'specialist', business_id: '' });
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -82,10 +91,10 @@ function InviteDialog() {
             <DialogContent>
                 <form onSubmit={submit} className="flex flex-col gap-5">
                     <DialogHeader>
-                        <DialogTitle>Invite team member</DialogTitle>
+                        <DialogTitle>Invite team member or client</DialogTitle>
                         <DialogDescription>
-                            The invited Google account can sign in after the
-                            role is saved.
+                            The invited Google account can sign in once their
+                            role and access are set.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex flex-col gap-2">
@@ -98,7 +107,13 @@ function InviteDialog() {
                             onChange={(event) =>
                                 form.setData('email', event.target.value)
                             }
+                            placeholder="user@example.com"
                         />
+                        {form.errors.email && (
+                            <p className="text-xs text-destructive">
+                                {form.errors.email}
+                            </p>
+                        )}
                     </div>
                     <div className="flex flex-col gap-2">
                         <Label>Role</Label>
@@ -119,10 +134,59 @@ function InviteDialog() {
                                     <SelectItem value="manager">
                                         Manager
                                     </SelectItem>
+                                    <SelectItem value="client">
+                                        Client
+                                    </SelectItem>
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
+                        {form.errors.role && (
+                            <p className="text-xs text-destructive">
+                                {form.errors.role}
+                            </p>
+                        )}
                     </div>
+
+                    {form.data.role === 'client' && (
+                        <div className="flex flex-col gap-2">
+                            <Label>
+                                Business / Client Brand{' '}
+                                <span className="text-destructive">*</span>
+                            </Label>
+                            <Select
+                                value={form.data.business_id}
+                                onValueChange={(value) =>
+                                    form.setData('business_id', value)
+                                }
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select business..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        {businesses.map((b) => (
+                                            <SelectItem
+                                                key={b.id}
+                                                value={String(b.id)}
+                                            >
+                                                {b.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                            {form.errors.business_id && (
+                                <p className="text-xs text-destructive">
+                                    {form.errors.business_id}
+                                </p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                                Clients can only view and approve deliverables
+                                created for this business.
+                            </p>
+                        </div>
+                    )}
+
                     <DialogFooter>
                         <Button type="submit" disabled={form.processing}>
                             Save invitation
@@ -137,9 +201,11 @@ function InviteDialog() {
 export default function Team({
     users,
     invitations = [],
+    businesses = [],
 }: {
     users: User[];
     invitations?: Invitation[];
+    businesses?: BusinessOption[];
 }) {
     const { auth } = usePage<{ auth: { user: User } }>().props;
     const [copiedId, setCopiedId] = useState<number | null>(null);
@@ -211,7 +277,7 @@ export default function Team({
                                 Roles & Permissions
                             </Link>
                         </Button>
-                        <InviteDialog />
+                        <InviteDialog businesses={businesses} />
                     </div>
                 }
             />
@@ -281,7 +347,17 @@ export default function Team({
                                             </div>
                                         </td>
                                         <td>
-                                            <StatusBadge value={user.role} />
+                                            <div className="flex flex-col items-start gap-1">
+                                                <StatusBadge
+                                                    value={user.role}
+                                                />
+                                                {user.role === 'client' &&
+                                                    user.business && (
+                                                        <span className="text-[11px] font-medium text-muted-foreground">
+                                                            {user.business.name}
+                                                        </span>
+                                                    )}
+                                            </div>
                                         </td>
                                         <td>
                                             <span
@@ -308,7 +384,11 @@ export default function Team({
                                                 ? 'All operations and finance'
                                                 : user.role === 'manager'
                                                   ? 'Operations, clients, and delivery'
-                                                  : 'Assigned work and assets'}
+                                                  : user.role === 'client'
+                                                    ? user.business
+                                                        ? `Client portal (${user.business.name})`
+                                                        : 'Client portal'
+                                                    : 'Assigned work and assets'}
                                         </td>
                                         <td>{shortDate(user.created_at)}</td>
                                         <td className="text-right">
@@ -402,9 +482,22 @@ export default function Team({
                                                 </div>
                                             </td>
                                             <td>
-                                                <StatusBadge
-                                                    value={invitation.role}
-                                                />
+                                                <div className="flex flex-col items-start gap-1">
+                                                    <StatusBadge
+                                                        value={invitation.role}
+                                                    />
+                                                    {invitation.role ===
+                                                        'client' &&
+                                                        invitation.business && (
+                                                            <span className="text-[11px] font-medium text-muted-foreground">
+                                                                {
+                                                                    invitation
+                                                                        .business
+                                                                        .name
+                                                                }
+                                                            </span>
+                                                        )}
+                                                </div>
                                             </td>
                                             <td>
                                                 {invitation.inviter?.name ??

@@ -24,8 +24,12 @@ class TeamInvitationMail extends Mailable
      */
     public function envelope(): Envelope
     {
+        $subject = $this->invitation->role === 'client'
+            ? 'You have been invited to review deliverables for '.($this->invitation->business->name ?? 'your brand')
+            : 'You have been invited to join the team';
+
         return new Envelope(
-            subject: 'You have been invited to join the team',
+            subject: $subject,
         );
     }
 

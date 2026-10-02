@@ -88,6 +88,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/content/{contentItem}/inspirations', [ContentInspirationController::class, 'store'])->name('content.inspirations.store');
     Route::delete('/content/{contentItem}/inspirations/{inspiration}', [ContentInspirationController::class, 'destroy'])->name('content.inspirations.destroy');
 
+    Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+    Route::post('/content/{contentItem}/approve', [ApprovalController::class, 'respondAuthenticated'])->name('approvals.respond-authenticated');
+
     Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
     Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
@@ -108,11 +111,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');
         Route::get('/reports/{performancePeriod}/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');
         Route::get('/team', fn () => Inertia::render('team/index', [
-            'users' => User::orderByDesc('is_active')->orderBy('name')->get(),
-            'invitations' => Invitation::with('inviter:id,name')
+            'users' => User::with('business:id,name')->orderByDesc('is_active')->orderBy('name')->get(),
+            'invitations' => Invitation::with(['inviter:id,name', 'business:id,name'])
                 ->whereNull('accepted_at')
                 ->latest()
                 ->get(),
+            'businesses' => Business::orderBy('name')->get(['id', 'name']),
         ]))->name('team.index');
         Route::patch('/team/{user}/toggle-status', [TeamMemberController::class, 'toggleStatus'])->name('team.toggle-status');
         Route::post('/invitations', [InvitationController::class, 'store'])->name('invitations.store');

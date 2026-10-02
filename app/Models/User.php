@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -35,8 +36,10 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string $role
  * @property bool $is_active
  * @property string|null $calendar_token
+ * @property int|null $business_id
+ * @property-read Business|null $business
  */
-#[Fillable(['name', 'email', 'password', 'google_id', 'avatar', 'role', 'is_active', 'calendar_token'])]
+#[Fillable(['name', 'email', 'password', 'google_id', 'avatar', 'role', 'is_active', 'calendar_token', 'business_id'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
@@ -78,8 +81,23 @@ class User extends Authenticatable implements PasskeyUser
         return $this->role === 'owner' || $this->hasRole('owner');
     }
 
+    public function isClient(): bool
+    {
+        return $this->role === 'client' || $this->hasRole('client');
+    }
+
+    /** @return BelongsTo<Business, $this> */
+    public function business(): BelongsTo
+    {
+        return $this->belongsTo(Business::class);
+    }
+
     public function canManageOperations(): bool
     {
+        if ($this->isClient()) {
+            return false;
+        }
+
         return in_array($this->role, ['owner', 'manager'], true)
             || $this->hasAnyRole(['owner', 'manager'])
             || $this->can('businesses.view');

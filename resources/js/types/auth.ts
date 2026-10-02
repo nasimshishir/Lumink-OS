@@ -3,7 +3,9 @@ export type User = {
     name: string;
     email: string;
     avatar?: string;
-    role?: 'owner' | 'manager' | 'specialist';
+    role?: 'owner' | 'manager' | 'specialist' | 'client';
+    business_id?: number | null;
+    business?: { id: number; name: string } | null;
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
     created_at: string;

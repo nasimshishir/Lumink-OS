@@ -23,6 +23,10 @@ class TaskPolicy
 
     public function view(User $user, Task $task): bool
     {
+        if ($user->isClient()) {
+            return false;
+        }
+
         return $user->canManageOperations()
             || $task->owner_id === $user->id
             || $task->created_by === $user->id;

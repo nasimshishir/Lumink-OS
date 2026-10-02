@@ -19,23 +19,32 @@ class ContentController extends Controller
 {
     public function index(Request $request): Response
     {
-        abort_unless($request->user()->can('viewAny', ContentItem::class), 403);
+        $user = $request->user();
+        abort_unless($user->can('viewAny', ContentItem::class), 403);
+
+        $contentQuery = ContentItem::with(['business:id,name,slug', 'owner:id,name,avatar', 'campaign:id,name'])
+            ->whereHas('business');
+
+        if ($user->isClient()) {
+            abort_unless($user->business_id !== null, 403, 'Your account is not assigned to any business.');
+            $contentQuery->where('business_id', $user->business_id)
+                ->whereIn('stage', ['client_review', 'approved', 'scheduled', 'published']);
+        } elseif (! $user->canManageOperations()) {
+            $contentQuery->where(fn ($query) => $query
+                ->where('owner_id', $user->id)
+                ->orWhereHas('tasks', fn ($query) => $query->where('owner_id', $user->id)));
+        }
+
+        $businesses = $user->canManageOperations()
+            ? Business::orderBy('name')->get(['id', 'name'])
+            : ($user->isClient() && $user->business_id ? Business::where('id', $user->business_id)->get(['id', 'name']) : []);
 
         return Inertia::render('content/index', [
-            'content' => ContentItem::with(['business:id,name,slug', 'owner:id,name,avatar', 'campaign:id,name'])
-                ->whereHas('business')
-                ->when(! $request->user()->canManageOperations(), fn ($query) => $query
-                    ->where(fn ($query) => $query
-                        ->where('owner_id', $request->user()->id)
-                        ->orWhereHas('tasks', fn ($query) => $query->where('owner_id', $request->user()->id))))
-                ->orderBy('publish_at')
-                ->get(),
+            'content' => $contentQuery->orderBy('publish_at')->get(),
             'stages' => ContentItem::STAGES,
-            'businesses' => $request->user()->canManageOperations()
-                ? Business::orderBy('name')->get(['id', 'name'])
-                : [],
-            'canManage' => $request->user()->canManageOperations(),
-            'isOwner' => $request->user()->isOwner(),
+            'businesses' => $businesses,
+            'canManage' => $user->canManageOperations(),
+            'isOwner' => $user->isOwner(),
         ]);
     }
 

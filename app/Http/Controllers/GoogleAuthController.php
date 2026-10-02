@@ -53,6 +53,7 @@ class GoogleAuthController extends Controller
                 'email' => $email,
                 'password' => Hash::make(Str::random(40)),
                 'role' => $invitation->role,
+                'business_id' => $invitation->business_id,
                 'is_active' => true,
                 'email_verified_at' => now(),
             ]);
@@ -100,6 +101,10 @@ class GoogleAuthController extends Controller
             'user_id' => $user->id,
             'event' => 'user.signed_in_with_google',
         ]);
+
+        if ($user->isClient()) {
+            return redirect()->intended(route('approvals.index'));
+        }
 
         return redirect()->intended(route('today'));
     }

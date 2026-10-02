@@ -3,6 +3,7 @@ import {
     BarChart3,
     BriefcaseBusiness,
     CalendarDays,
+    CheckCircle2,
     CircleDollarSign,
     ClipboardCheck,
     LayoutDashboard,
@@ -39,6 +40,7 @@ const allNavItems: (NavItem & {
         operationsOnly: true,
     },
     { title: 'Content', href: '/content', icon: Video },
+    { title: 'Approvals', href: '/approvals', icon: CheckCircle2 },
     { title: 'Calendar', href: '/calendar', icon: CalendarDays },
     {
         title: 'Finance',
@@ -66,11 +68,21 @@ const allNavItems: (NavItem & {
 export function AppSidebar() {
     const { auth } = usePage().props;
     const role = auth.user?.role as string | undefined;
-    const navItems = allNavItems.filter(
-        (item) =>
-            (!item.ownerOnly || role === 'owner') &&
-            (!item.operationsOnly || role === 'owner' || role === 'manager'),
-    );
+    const isClientRole = role === 'client';
+
+    const navItems = isClientRole
+        ? [
+              { title: 'Approvals', href: '/approvals', icon: CheckCircle2 },
+              { title: 'Deliverables', href: '/content', icon: Video },
+              { title: 'Settings', href: '/settings/profile', icon: Settings },
+          ]
+        : allNavItems.filter(
+              (item) =>
+                  (!item.ownerOnly || role === 'owner') &&
+                  (!item.operationsOnly ||
+                      role === 'owner' ||
+                      role === 'manager'),
+          );
 
     return (
         <Sidebar collapsible="icon" className="border-r-0">
@@ -82,7 +94,10 @@ export function AppSidebar() {
                             asChild
                             className="h-14 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                         >
-                            <Link href="/today" prefetch>
+                            <Link
+                                href={isClientRole ? '/approvals' : '/today'}
+                                prefetch
+                            >
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

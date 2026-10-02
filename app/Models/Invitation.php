@@ -11,8 +11,10 @@ use Illuminate\Support\Carbon;
  * @property string $email
  * @property string $role
  * @property int|null $invited_by
+ * @property int|null $business_id
  * @property Carbon|null $accepted_at
  * @property-read User|null $inviter
+ * @property-read Business|null $business
  */
 class Invitation extends Model
 {
@@ -27,5 +29,11 @@ class Invitation extends Model
     public function inviter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'invited_by');
+    }
+
+    /** @return BelongsTo<Business, $this> */
+    public function business(): BelongsTo
+    {
+        return $this->belongsTo(Business::class);
     }
 }

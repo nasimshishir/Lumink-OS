@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 
 class InvitationController extends Controller
 {
@@ -16,12 +17,24 @@ class InvitationController extends Controller
     {
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255'],
-            'role' => ['required', 'in:manager,specialist'],
+            'role' => ['required', 'in:manager,specialist,client'],
+            'business_id' => [
+                'nullable',
+                Rule::requiredIf(fn () => $request->input('role') === 'client'),
+                'exists:businesses,id',
+            ],
         ]);
+
+        $businessId = $data['role'] === 'client' ? (int) $data['business_id'] : null;
 
         $invitation = Invitation::updateOrCreate(
             ['email' => strtolower($data['email'])],
-            ['role' => $data['role'], 'invited_by' => $request->user()->id, 'accepted_at' => null],
+            [
+                'role' => $data['role'],
+                'business_id' => $businessId,
+                'invited_by' => $request->user()->id,
+                'accepted_at' => null,
+            ],
         );
 
         AuditEvent::create([
@@ -29,7 +42,11 @@ class InvitationController extends Controller
             'event' => 'invitation.created',
             'auditable_type' => Invitation::class,
             'auditable_id' => $invitation->id,
-            'metadata' => ['email' => $invitation->email, 'role' => $invitation->role],
+            'metadata' => [
+                'email' => $invitation->email,
+                'role' => $invitation->role,
+                'business_id' => $invitation->business_id,
+            ],
         ]);
 
         try {

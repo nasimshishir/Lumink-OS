@@ -61,7 +61,11 @@ export default function ContentIndex({
             <PageHeading
                 title="Content"
                 description="Plan, produce, approve, schedule, and publish every asset."
-                actions={<AddContentDialog businesses={businesses} />}
+                actions={
+                    canManage ? (
+                        <AddContentDialog businesses={businesses} />
+                    ) : null
+                }
             />
             <main className="flex flex-col gap-5 p-5">
                 <section className="lumink-panel flex flex-col gap-3 p-3 sm:flex-row sm:items-center">

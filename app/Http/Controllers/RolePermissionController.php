@@ -13,9 +13,13 @@ use Spatie\Permission\Models\Role;
 
 class RolePermissionController extends Controller
 {
-    public const SYSTEM_ROLES = ['owner', 'manager', 'specialist'];
+    public const SYSTEM_ROLES = ['owner', 'manager', 'specialist', 'client'];
 
     public const PERMISSION_GROUPS = [
+        'Approvals' => [
+            ['name' => 'approvals.view', 'label' => 'View Approvals', 'description' => 'View deliverables submitted for client approval'],
+            ['name' => 'approvals.respond', 'label' => 'Respond to Approvals', 'description' => 'Approve or request changes on client deliverables'],
+        ],
         'Businesses' => [
             ['name' => 'businesses.view', 'label' => 'View Businesses', 'description' => 'View client workspaces, health and overview'],
             ['name' => 'businesses.create', 'label' => 'Create Businesses', 'description' => 'Create new client workspaces and contracts'],
